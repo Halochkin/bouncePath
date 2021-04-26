@@ -1,0 +1,25 @@
+<my-button>click me</my-button>
+
+<script type="module">
+  import {Clickable} from "./clickable.js"
+
+
+  class baseClass extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({mode: "open"});
+      this.shadowRoot.innerHTML = `<slot>click me</slot>`
+    }
+  }
+
+
+  customElements.define("my-button", new Clickable(baseClass))
+
+  const btn = document.querySelector("my-button");
+
+
+  btn.addEventListener("my-click", () => {console.log("click")})
+
+
+</script>
+
