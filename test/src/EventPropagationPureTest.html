@@ -1,0 +1,206 @@
+<div>
+    <link-slot>
+    <span>
+      <outer-host></outer-host>
+    </span>
+        <h2>hello world</h2>
+    </link-slot>
+</div>
+
+<script type="module">
+
+  class OuterHost extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({mode: "open"});
+      this.shadowRoot.innerHTML =
+        `<upper-inner-link-slot>
+   <inner-link-slot>
+      <inner-host></inner-host>
+   </inner-link-slot>
+</upper-inner-link-slot>`;
+    }
+  }
+
+  class InnerHost extends HTMLElement {
+    constructor() {
+      super();
+      const shadowRoot = this.attachShadow({mode: "open"});
+      shadowRoot.innerHTML = '<h1>hello sunshine</h1>';
+    }
+  }
+
+  class LinkSlot extends HTMLElement {
+    constructor() {
+      super();
+      const shadowRoot = this.attachShadow({mode: "open"});
+      shadowRoot.innerHTML = '<frame-slot><slot></slot></frame-slot>';
+    }
+  }
+
+  class FrameSlot extends HTMLElement {
+    constructor() {
+      super();
+      const shadowRoot = this.attachShadow({mode: "open"});
+      shadowRoot.innerHTML = '<slot></slot>';
+    }
+  }
+
+  class InnerLinkSlot extends HTMLElement {
+    constructor() {
+      super();
+      const shadowRoot = this.attachShadow({mode: "open"});
+      shadowRoot.innerHTML = '<inner-frame-slot><slot></slot></inner-frame-slot>';
+    }
+  }
+
+  class InnerFrameSlot extends HTMLElement {
+    constructor() {
+      super();
+      const shadowRoot = this.attachShadow({mode: "open"});
+      shadowRoot.innerHTML = '<slot></slot>';
+    }
+  }
+
+  class UpperInnerLinkSlot extends HTMLElement {
+    constructor() {
+      super();
+      const shadowRoot = this.attachShadow({mode: "open"});
+      shadowRoot.innerHTML = '<upper-inner-frame-slot><slot></slot></upper-inner-frame-slot>';
+    }
+  }
+
+  class UpperInnerFrameSlot extends HTMLElement {
+    constructor() {
+      super();
+      const shadowRoot = this.attachShadow({mode: "open"});
+      shadowRoot.innerHTML = '<slot></slot>';
+    }
+  }
+
+
+  customElements.define("outer-host", OuterHost);
+  customElements.define("inner-host", InnerHost);
+  customElements.define("link-slot", LinkSlot);
+  customElements.define("frame-slot", FrameSlot);
+  customElements.define("inner-link-slot", InnerLinkSlot);
+  customElements.define("inner-frame-slot", InnerFrameSlot);
+  customElements.define("upper-inner-link-slot", UpperInnerLinkSlot);
+  customElements.define("upper-inner-frame-slot", UpperInnerFrameSlot);
+
+  const outerHost = document.querySelector("outer-host");
+  const h1 = outerHost.shadowRoot.children[0].children[0].children[0].shadowRoot.children[0];
+  const innerMostShadow = h1.shadowRoot;
+
+  function shortTagName(tagName) {
+    return tagName.length < 11 ? tagName: (tagName.split('-').map(n => n.substr(0, 2)).join('-'));
+  }
+
+  function nodeName(node) {
+    if (node === window)
+      return 'window        ';
+    if (node === document)
+      return 'document      ';
+    if (node instanceof DocumentFragment)
+      return "##" + shortTagName(node.host.tagName);
+    return shortTagName(node.tagName) + "  ";
+  }
+
+  function getPropagationRoot(node) {
+    if (node === window) return window;
+    const root = node.getRootNode();
+    return root === document ? window : root;
+  }
+
+  const result = [];
+
+  function log(e, capture, node) {
+    const propagationRoot = getPropagationRoot(node);
+    const b = capture ? 'c' : 'b';
+    const root = nodeName(propagationRoot);
+    const target = nodeName(node);
+    const currentTargetCorrect = e.currentTarget === node;
+    const targetCorrect = e.path[0] === e.target;
+    const eventPropsCorrect = currentTargetCorrect && targetCorrect
+    const str = [root, b, target, eventPropsCorrect].map(s => (s + '           ').substr(0, 13)).join(' ');
+    result.push(str);
+    console.log(str);
+  }
+
+  import {composedPath} from "./index.js";
+  const targets = composedPath(innerMostShadow, window);
+
+
+  for (let node of targets) {
+    node.addEventListener('bob', e => log(e, false, node), false);
+    // node.addEventListener('bob', e => log(e, true, node), true);
+  }
+  h1.dispatchEvent(new Event('bob', {composed: true, bubbles: true}));
+  const test =
+    `window        c            window        true
+window        c            document      true
+window        c            HTML          true
+window        c            BODY          true
+window        c            DIV           true
+window        c            LINK-SLOT     true
+window        c            SPAN          true
+window        b            OUTER-HOST    true
+window        c            OUTER-HOST    true
+window        b            SPAN          true
+window        b            LINK-SLOT     true
+window        b            DIV           true
+window        b            BODY          true
+window        b            HTML          true
+window        b            document      true
+window        b            window        true
+##OUTER-HOST  c            ##OUTER-HOST  true
+##OUTER-HOST  c            UP-IN-LI-SL   true
+##OUTER-HOST  c            IN-LI-SL      true
+##OUTER-HOST  b            INNER-HOST    true
+##OUTER-HOST  c            INNER-HOST    true
+##OUTER-HOST  b            IN-LI-SL      true
+##OUTER-HOST  b            UP-IN-LI-SL   true
+##OUTER-HOST  b            ##OUTER-HOST  true
+##INNER-HOST  c            ##INNER-HOST  true
+##INNER-HOST  b            H1            true
+##INNER-HOST  c            H1            true
+##INNER-HOST  b            ##INNER-HOST  true
+##H1          b            ##H1          true
+##H1          c            ##H1          true
+##IN-LI-SL    c            ##IN-LI-SL    true
+##IN-LI-SL    c            IN-FR-SL      true
+##IN-LI-SL    b            SLOT          true
+##IN-LI-SL    c            SLOT          true
+##IN-LI-SL    b            IN-FR-SL      true
+##IN-LI-SL    b            ##IN-LI-SL    true
+##IN-FR-SL    c            ##IN-FR-SL    true
+##IN-FR-SL    b            SLOT          true
+##IN-FR-SL    c            SLOT          true
+##IN-FR-SL    b            ##IN-FR-SL    true
+##UP-IN-LI-SL c            ##UP-IN-LI-SL true
+##UP-IN-LI-SL c            UP-IN-FR-SL   true
+##UP-IN-LI-SL b            SLOT          true
+##UP-IN-LI-SL c            SLOT          true
+##UP-IN-LI-SL b            UP-IN-FR-SL   true
+##UP-IN-LI-SL b            ##UP-IN-LI-SL true
+##UP-IN-FR-SL c            ##UP-IN-FR-SL true
+##UP-IN-FR-SL b            SLOT          true
+##UP-IN-FR-SL c            SLOT          true
+##UP-IN-FR-SL b            ##UP-IN-FR-SL true
+##LINK-SLOT   c            ##LINK-SLOT   true
+##LINK-SLOT   c            FRAME-SLOT    true
+##LINK-SLOT   b            SLOT          true
+##LINK-SLOT   c            SLOT          true
+##LINK-SLOT   b            FRAME-SLOT    true
+##LINK-SLOT   b            ##LINK-SLOT   true
+##FRAME-SLOT  c            ##FRAME-SLOT  true
+##FRAME-SLOT  b            SLOT          true
+##FRAME-SLOT  c            SLOT          true
+##FRAME-SLOT  b            ##FRAME-SLOT  true
+##HTML        c            ##HTML        true
+##HTML        b            SLOT          true
+##HTML        c            SLOT          true
+##HTML        b            ##HTML        true`;
+  const s = result.map(s => s.trim()).join('\n');
+  console.log(s === test);
+</script>
