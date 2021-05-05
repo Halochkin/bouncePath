@@ -1,5 +1,5 @@
-import {} from "../../src/HTMLElementNative.js";
-import {bounceSequence, toString} from "../../src/BouncedPath.js";
+import {} from "../HTMLElementNative.js";
+import {bounceSequence, toString} from "../BouncedPath.js";
 
 class OuterHost extends HTMLElement {
   constructor() {
@@ -89,23 +89,6 @@ span.appendChild(outerHost);
 linkSlot.appendChild(h2);
 
 
-// <div>
-  // <link-slot>
-  // <span>
-  //    <outer-host></outer-host>
-   // </span>
-  // <h2>hello world</h2>
-  // </link-slot>
-// </div>
-
-
-//`0:OUTER-HOST,SPAN,LINK-SLOT,DIV,BODY,HTML,#document,window
-// ..0:#document-fragment
-// ..2:SLOT,FRAME-SLOT,#document-fragment
-// ....1:SLOT,#document-fragment
-// ..5:SLOT,#document-fragment`
-
-
 function replacer(ignore, result, depth = '', i = 0) {
   let {path, contexts} = result;
   path = depth + i + ':' + path.map(et => et.nodeName || 'window').join(',');
@@ -128,9 +111,7 @@ describe('bouncedPath <outer-path> shadowRoot target', function () {
   })
 })
 
-
 describe('bounced path <h1> most nested element', function () {
-
   const result = bounceSequence(mostNestedH1, window);
   const stringifiedResult = JSON.stringify(result, replacer);
 

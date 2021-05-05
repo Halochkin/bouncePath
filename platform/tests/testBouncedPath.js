@@ -1,11 +1,17 @@
-import {} from "../../src/HTMLElementNative.js";
-
+import {} from "../HTMLElementNative.js";
+import {bounceSequence, toString} from "../BouncedPath.js";
 
 class OuterHost extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({mode: "open"});
-    this.shadowRoot.innerHTML = '<upper-inner-link-slot><inner-link-slot><inner-host></inner-host></inner-link-slot></upper-inner-link-slot>';
+    this.shadowRoot.innerHTML =
+      `
+<upper-inner-link-slot>
+  <inner-link-slot>
+    <inner-host></inner-host>
+  </inner-link-slot>
+</upper-inner-link-slot>`;
   }
 }
 
@@ -87,3 +93,48 @@ div.appendChild(linkSlot);
 linkSlot.appendChild(span);
 span.appendChild(outerHost);
 linkSlot.appendChild(h2);
+
+
+function replacer(ignore, result, depth = '', i = 0) {
+  let {path, contexts} = result;
+  path = depth + i + ':' + path.map(et => et.nodeName || 'window').join(',');
+  contexts = contexts.map((c, i) => c ? replacer(null, c, depth + '..', i) : null).filter(a => a);
+  return path + contexts.flat();
+}
+
+describe('bouncedPath <outer-path> shadowRoot target', function () {
+  const result = bounceSequence(outerHost.shadowRoot, window);
+  const stringifiedResult = JSON.stringify(result, replacer);
+
+  it(".path sequence", function () {
+    expect(stringifiedResult).to.be.equal(
+      '"0:OUTER-HOST,SPAN,LINK-SLOT,DIV,BODY,HTML,#document,window' +
+      '..0:#document-fragment,' +
+      '..2:SLOT,FRAME-SLOT,#document-fragment' +
+      '....1:SLOT,#document-fragment,' +
+      '..5:SLOT,#document-fragment"'
+    )
+  })
+})
+
+describe('bounced path <h1> most nested element', function () {
+  const result = bounceSequence(mostNestedH1, window);
+  const stringifiedResult = JSON.stringify(result, replacer);
+
+  it(".path sequence", function () {
+    console.log(stringifiedResult);
+    expect(stringifiedResult).to.be.equal(
+      '"0:OUTER-HOST,SPAN,LINK-SLOT,DIV,BODY,HTML,#document,window' +
+      '..0:INNER-HOST,INNER-LINK-SLOT,UPPER-INNER-LINK-SLOT,#document-fragment' +
+      '....0:H1,#document-fragment' +
+      '......0:#document-fragment,' +
+      '....1:SLOT,INNER-FRAME-SLOT,#document-fragment' +
+      '......1:SLOT,#document-fragment,' +
+      '....2:SLOT,UPPER-INNER-FRAME-SLOT,#document-fragment' +
+      '......1:SLOT,#document-fragment,' +
+      '..2:SLOT,FRAME-SLOT,#document-fragment' +
+      '....1:SLOT,#document-fragment,' +
+      '..5:SLOT,#document-fragment"'
+    )
+  })
+})

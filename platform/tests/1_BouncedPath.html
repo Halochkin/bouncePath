@@ -1,10 +1,10 @@
 <div>
-    <link-slot>
+  <link-slot>
     <span>
       <outer-host></outer-host>
     </span>
-        <h2>hello world</h2>
-    </link-slot>
+    <h2>hello world</h2>
+  </link-slot>
 </div>
 
 <script type="module">
@@ -81,13 +81,8 @@
   customElements.define("upper-inner-link-slot", UpperInnerLinkSlot);
   customElements.define("upper-inner-frame-slot", UpperInnerFrameSlot);
 
-
-
-
-
-
-  import {} from "../src/HTMLElementNative.js";
-  import {bounceSequence, toString} from "../src/BouncedPath.js";
+  import {} from "../HTMLElementNative.js";
+  import {bounceSequence, toString} from "../index.js";
 
   (function () {
     const outerHost = document.querySelector("outer-host");
@@ -98,9 +93,6 @@
       console.log("*************************************************")
       const test = bounceSequence(target, root);
       const str = toString(test);
-
-
-
       str.forEach(l => console.log(l));
       console.log(shouldBe === str.join('\n'));
     }
