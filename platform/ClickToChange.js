@@ -37,7 +37,7 @@ function clickToChangeRadio() {
 export class TranslateClickToChangeRadio extends HTMLElement {
 
   firstConnectedCallback() {
-    this.shadowRoot.addEventListener('click', clickToChangeRadio, {
+    this.addEventListener('click', clickToChangeRadio, {
       preventable: EventListenerOptions.PREVENTABLE_SOFT,
       trustedOnly: true
     });
@@ -51,7 +51,7 @@ function changeTogglesCheckedRadio(e) {
 
 export class ChangeTogglesCheckedRadio extends HTMLElement {
   firstConnectedCallback() {
-    this.shadowRoot.addEventListener('change', changeTogglesCheckedRadio, {
+    this.addEventListener('change', changeTogglesCheckedRadio, {
       preventable: EventListenerOptions.PREVENTABLE_SOFT,
       trustedOnly: true
     });

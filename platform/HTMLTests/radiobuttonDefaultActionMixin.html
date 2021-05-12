@@ -6,7 +6,6 @@
 <script type="module">
   import {FirstConnectedCallbackMixin} from "../FirstConnectedCallbackMixin.js";
   import {} from "../CustomElementsMix.js";
-  // import {} from "../EventTarget.js";
 
   window.EventListenerOptions = Object.assign(window.EventListenerOptions || {}, {
     PREVENTABLE_NONE: 0,   // the listener is not blocked by preventDefault, nor does it trigger preventDefault.     //this is the same as passive: true
@@ -46,22 +45,6 @@
       <div></div>
       `
     }
-
-    static get observedAttributes() {
-      return ["name", "checked"];   //filter type also
-    }
-
-    // set elements into global object by group
-    attributeChangedCallback(name, oldValue, newValue) {
-      // debugger
-    }
-
-
-    handleClick(e) {
-
-    }
-
-
   }
 
   customElements.mix("custom-input", [ChangeTogglesCheckedRadio, TranslateClickToChangeRadio, customInput])
