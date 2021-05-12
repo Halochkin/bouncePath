@@ -1,11 +1,36 @@
-<custom-input name="group1" type="radio">a</custom-input>
-<custom-input name="group2" checked type="radio">b</custom-input>
-<custom-input name="group1" checked type="radio">c</custom-input>
-<custom-input name="group2" type="radio">d</custom-input>
+<custom-input type="radio" checked></custom-input>
+<custom-input type="radio" name="group2"></custom-input>
+<custom-input type="radio" checked name="group2"></custom-input>
+<custom-input type="radio" checked name="group1"></custom-input>
+<custom-input type="radio" name="group2"></custom-input>
+<custom-input type="radio" checked></custom-input>
+<custom-input type="radio" checked></custom-input>
+<custom-input type="radio" checked name="group1"></custom-input>
+
+
+<hr>
+<input type="radio" checked>
+<input type="radio" name="two">
+<input type="radio" checked name="two">
+<input type="radio" checked name="one">
+<input type="radio" name="two">
+<input type="radio" checked>
+<input type="radio" checked>
+<input type="radio" checked name="one">
+
+
+<style>
+    input {
+        display: inline-block;
+    }
+</style>
 
 <script type="module">
   import {FirstConnectedCallbackMixin} from "../FirstConnectedCallbackMixin.js";
   import {} from "../CustomElementsMix.js";
+
+  // const groupNames = Symbol("move");
+
 
   window.EventListenerOptions = Object.assign(window.EventListenerOptions || {}, {
     PREVENTABLE_NONE: 0,   // the listener is not blocked by preventDefault, nor does it trigger preventDefault.     //this is the same as passive: true
@@ -14,6 +39,36 @@
   });
 
   import {TranslateClickToChangeRadio, ChangeTogglesCheckedRadio} from "../ClickToChange.js";
+
+  class markDefaultChecked extends HTMLElement {
+
+
+    firstConnectedCallback() {
+      const nonGroupedChecked = document.querySelectorAll("custom-input:not([name])");
+
+      const groupNames = [];
+
+      // get all possible group names and push only unique
+      document.querySelectorAll("custom-input[name]").forEach(item => {
+        const value = item.getAttribute("name");
+        if (!groupNames.includes(value))
+          groupNames.push(value)
+      });
+
+      // select all items from group and get only last, i.e all previous with
+      const lastInGroup = [];
+      for (const group of groupNames) {
+        let res = document.querySelectorAll(`custom-input[name=${group}][checked]`);
+        if (res.length)
+          lastInGroup.push(res[res.length - 1]);
+      }
+      
+      for (const [index, item] of Object.entries([...nonGroupedChecked, ...lastInGroup])) {
+        item.checked = true;
+        item.style.zoom = "1.5"; //todo: implement css styling
+      }
+    }
+  }
 
   class customInput extends FirstConnectedCallbackMixin(HTMLElement) {
 
@@ -32,9 +87,10 @@
        height: 10px;
        width: 10px;
        margin: 3px;
+       display: inline-block;
        }
 
-       div.checked, div[checked]{
+       div.checked {
        border-radius: 20%;
        background-color: blue;
         color: white;
@@ -45,9 +101,19 @@
       <div></div>
       `
     }
+
+    static get observeAttributes() {
+      return ["name"];
+    }
+
+    attributeChangedCallback(name, oldValue, newValue) {
+      debugger
+    }
+
   }
 
-  customElements.mix("custom-input", [ChangeTogglesCheckedRadio, TranslateClickToChangeRadio, customInput])
+  customElements.mix("custom-input",
+    [ChangeTogglesCheckedRadio, TranslateClickToChangeRadio, markDefaultChecked, customInput])
 
 </script>
 
