@@ -1,0 +1,66 @@
+<div>
+  <span>
+    <h1>hello sunshine</h1>
+    <h2>hello world</h2>
+  </span>
+</div>
+
+<script type="module">
+  import {MutationObserverParentNodeNaive, MutationObserverParentNode, MutationObserverParentNodeNullSafe} from "./MutationObserverParentNode.js";
+  import {MutationObserverParentNodeNullSafeEfficient} from "./MutationObserverParentNode_full.js";
+
+
+  const h1 = document.querySelector("h1");
+  const h2 = document.querySelector("h2");
+  const span = document.querySelector("span");
+
+  function runTest(childTarget, mutationObserverParentNode) {
+    console.log("*****************" + mutationObserverParentNode.name + "**********************************");
+    const observer = mutationObserverParentNode(childTarget, function (target, oldParent) {
+      console.log(1, target, oldParent, target.parentNode);
+    });
+    const observer2 = mutationObserverParentNode(childTarget, function (target, oldParent) {
+      console.log(2, target, oldParent, target.parentNode);
+    });
+
+    setTimeout(() => {
+      console.log("one")
+      childTarget.parentNode.append(childTarget);
+      Promise.resolve().then(() => console.log("one two"))
+    });
+    setTimeout(() => {
+      console.log("two")
+      childTarget.parentNode.parentNode.prepend(childTarget);
+      Promise.resolve().then(() => console.log("two two"));
+    });
+    setTimeout(() => {
+      console.log("three")
+      childTarget.parentNode.append(childTarget);
+      Promise.resolve().then(() => console.log("three two"))
+    });
+    setTimeout(() => {
+      console.log("four")
+      childTarget.parentNode.children[0].prepend(childTarget);
+      Promise.resolve().then(() => console.log("four two"));
+    });
+    setTimeout(() => {
+      console.log("five")
+      h1.remove();
+      Promise.resolve().then(() => console.log("five two"));
+    });
+    setTimeout(() => {
+      console.log("six")
+      span.prepend(h1);
+      Promise.resolve().then(() => console.log("six two"));
+    });
+    setTimeout(() => {
+      observer.disconnect();
+      observer2.disconnect();
+    });
+  }
+
+  setTimeout(()=>runTest(h1, MutationObserverParentNodeNaive));
+  setTimeout(()=>runTest(h1, MutationObserverParentNode), 50);
+  setTimeout(()=>runTest(h1, MutationObserverParentNodeNullSafe), 100);
+  setTimeout(()=>runTest(h1, MutationObserverParentNodeNullSafeEfficient), 150);
+</script>
