@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CustomElementsMix</title>
+    <script type="module" src="../CustomElementsMix.js"></script>
+</head>
+<body>
+<script>
+    class mixinA extends HTMLElement{
+      constructor() {
+        super();
+        this.innerHTML = `<span>A element</span>`;
+      }
+
+      connectedCallback(){
+        console.log("a")
+      }
+
+    }
+
+    class mixinB extends HTMLElement{
+      constructor() {
+        super();
+        this.innerHTML = `<h2>b element</h2>`;
+      }
+
+      connectedCallback(){
+        console.log("b")
+      }
+    }
+
+
+
+
+
+
+    window.addEventListener("click", e=>{
+      customElements.mix("a-b-combo", [mixinA, mixinB])
+
+      const element = document.createElement("a-b-combo");
+
+      document.body.appendChild(element);
+
+    })
+
+
+
+
+</script>
+
+
+
+
+</body>
+</html>

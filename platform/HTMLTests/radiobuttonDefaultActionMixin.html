@@ -1,0 +1,73 @@
+<custom-input name="group1" type="radio">a</custom-input>
+<custom-input name="group2" checked type="radio">b</custom-input>
+<custom-input name="group1" checked type="radio">c</custom-input>
+<custom-input name="group2" type="radio">d</custom-input>
+
+<script type="module">
+  import {FirstConnectedCallbackMixin} from "../FirstConnectedCallbackMixin.js";
+  import {} from "../CustomElementsMix.js";
+  // import {} from "../EventTarget.js";
+
+  window.EventListenerOptions = Object.assign(window.EventListenerOptions || {}, {
+    PREVENTABLE_NONE: 0,   // the listener is not blocked by preventDefault, nor does it trigger preventDefault.     //this is the same as passive: true
+    PREVENTABLE_SOFT: 1,   // the listener is blocked by preventDefault, and *may or may not* trigger preventDefault.
+    PREVENTABLE: 2,        // the listener is blocked by preventDefault, and will always call preventDefault when invoked.
+  });
+
+  import {TranslateClickToChangeRadio, ChangeTogglesCheckedRadio} from "../ClickToChange.js";
+
+  class customInput extends FirstConnectedCallbackMixin(HTMLElement) {
+
+    connectedCallback() {
+      if (super.connectedCallback) super.connectedCallback();
+    }
+
+    firstConnectedCallback() {
+      this.attachShadow({mode: "open"});
+      this.shadowRoot.innerHTML = `
+      <style>
+       div{
+       border-radius: 20%;
+       background-color: white;
+       border: 1px solid gray;
+       height: 10px;
+       width: 10px;
+       margin: 3px;
+       }
+
+       div.checked, div[checked]{
+       border-radius: 20%;
+       background-color: blue;
+        color: white;
+       content: "+";
+       }
+
+      </style>
+      <div></div>
+      `
+    }
+
+    static get observedAttributes() {
+      return ["name", "checked"];   //filter type also
+    }
+
+    // set elements into global object by group
+    attributeChangedCallback(name, oldValue, newValue) {
+      // debugger
+    }
+
+
+    handleClick(e) {
+
+    }
+
+
+  }
+
+  customElements.mix("custom-input", [ChangeTogglesCheckedRadio, TranslateClickToChangeRadio, customInput])
+
+</script>
+
+
+</body>
+</html>
