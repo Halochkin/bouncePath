@@ -31,11 +31,8 @@
   import {FirstConnectedCallbackMixin} from "../FirstConnectedCallbackMixin.js";
   import {} from "../CustomElementsMix.js";
   import {TranslateClickToChangeRadio, ChangeTogglesCheckedRadio} from "../ClickToChange.js";
-  import {HasCheckedRadio} from "../HasChecked.js"
-
 
   const checkedPseudoKey = Math.random() + 1;  //this should probably be exportable.
-
 
   window.EventListenerOptions = Object.assign(window.EventListenerOptions || {}, {
     PREVENTABLE_NONE: 0,   // the listener is not blocked by preventDefault, nor does it trigger preventDefault.     //this is the same as passive: true
@@ -43,13 +40,10 @@
     PREVENTABLE: 2,        // the listener is blocked by preventDefault, and will always call preventDefault when invoked.
   });
 
-
   class markDefaultChecked extends HTMLElement {
-
 
     firstConnectedCallback() {
       const nonGroupedChecked = document.querySelectorAll("custom-input:not([name])");
-
       const groupNames = [];
 
       // get all possible group names and push only unique
@@ -112,7 +106,3 @@
     [ChangeTogglesCheckedRadio, TranslateClickToChangeRadio, markDefaultChecked, customInput])
 
 </script>
-
-
-</body>
-</html>
