@@ -1,6 +1,7 @@
 <custom-input type="radio" checked></custom-input>
 <custom-input type="radio" name="group2"></custom-input>
 <custom-input type="radio" checked name="group2"></custom-input>
+<custom-input type="radio" checked name="group2"></custom-input>
 <custom-input type="radio" checked name="group1"></custom-input>
 <custom-input type="radio" name="group2"></custom-input>
 <custom-input type="radio" checked></custom-input>
@@ -11,6 +12,7 @@
 <hr>
 <input type="radio" checked>
 <input type="radio" name="two">
+<input type="radio" checked name="two">
 <input type="radio" checked name="two">
 <input type="radio" checked name="one">
 <input type="radio" name="two">
@@ -28,8 +30,11 @@
 <script type="module">
   import {FirstConnectedCallbackMixin} from "../FirstConnectedCallbackMixin.js";
   import {} from "../CustomElementsMix.js";
+  import {TranslateClickToChangeRadio, ChangeTogglesCheckedRadio} from "../ClickToChange.js";
+  import {HasCheckedRadio} from "../HasChecked.js"
 
-  // const groupNames = Symbol("move");
+
+  const checkedPseudoKey = Math.random() + 1;  //this should probably be exportable.
 
 
   window.EventListenerOptions = Object.assign(window.EventListenerOptions || {}, {
@@ -38,7 +43,6 @@
     PREVENTABLE: 2,        // the listener is blocked by preventDefault, and will always call preventDefault when invoked.
   });
 
-  import {TranslateClickToChangeRadio, ChangeTogglesCheckedRadio} from "../ClickToChange.js";
 
   class markDefaultChecked extends HTMLElement {
 
@@ -62,10 +66,11 @@
         if (res.length)
           lastInGroup.push(res[res.length - 1]);
       }
-      
+
+      // set :checked attribute to shadow element to highlight it
       for (const [index, item] of Object.entries([...nonGroupedChecked, ...lastInGroup])) {
         item.checked = true;
-        item.style.zoom = "1.5"; //todo: implement css styling
+        item?.shadowRoot?.lastElementChild.setAttributeNode(document.createAttribute("checked"), checkedPseudoKey);
       }
     }
   }
@@ -90,7 +95,7 @@
        display: inline-block;
        }
 
-       div.checked {
+       div[checked] {
        border-radius: 20%;
        background-color: blue;
         color: white;
@@ -101,15 +106,6 @@
       <div></div>
       `
     }
-
-    static get observeAttributes() {
-      return ["name"];
-    }
-
-    attributeChangedCallback(name, oldValue, newValue) {
-      debugger
-    }
-
   }
 
   customElements.mix("custom-input",
