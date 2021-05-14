@@ -33,7 +33,7 @@ function getRelatedTarget(target) {
   // 1. try to select items :checked
   let groupItems = target.form.querySelectorAll(`[checked][name=${groupName}]`)
   // 2. if no such items and all items are unchecked, select group
-  if (!groupItems.length)
+  if (!groupItems.length || !groupItems[groupItems[0].checked])  //or has :checked attribute but does not .checked. when element is not currently .checked but contain :checked attribute.  omg!
     groupItems = target.form.querySelectorAll(`[name=${groupName}]`); //todo: ugly, but if noone item from group does not check as :checked, this means that current target must be relatedTarget
   //if some items marked with :checked (step 1 selector), we defined it as .checked manually inside firstConnectedCallback()
   const isCheckedProperty = groupItems[groupItems.length - 1].checked;

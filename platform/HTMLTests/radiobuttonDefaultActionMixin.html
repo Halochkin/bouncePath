@@ -10,19 +10,31 @@
 
 
 <form name="first1">
-    <custom-input type="radio"></custom-input>u
-    <custom-input type="radio" name="group2"></custom-input>n2
-    <custom-input type="radio" checked name="group2"></custom-input>nc2
-    <custom-input type="radio" name="group1"></custom-input>n1
-    <custom-input type="radio" name="group1"></custom-input>n1
-    <custom-input type="radio" checked></custom-input>uc
+    <custom-input type="radio"></custom-input>
+    u
+    <custom-input type="radio" name="group2"></custom-input>
+    n2
+    <custom-input type="radio" name="group2"></custom-input>
+    n2
+    <custom-input type="radio" checked name="group2"></custom-input>
+    nc2
+    <custom-input type="radio" name="group1"></custom-input>
+    n1
+    <custom-input type="radio" name="group1"></custom-input>
+    n1
+    <custom-input type="radio" checked></custom-input>
+    uc
 </form>
 <hr>
 <form name="second2">
-    <custom-input type="radio"></custom-input>u
-    <custom-input type="radio" checked name="group2"></custom-input>nc2
-    <custom-input type="radio" checked name="group1"></custom-input>nc1
-    <custom-input type="radio" checked name="group1"></custom-input>nc1
+    <custom-input type="radio"></custom-input>
+    u
+    <custom-input type="radio" checked name="group2"></custom-input>
+    nc2
+    <custom-input type="radio" checked name="group1"></custom-input>
+    nc1
+    <custom-input type="radio" checked name="group1"></custom-input>
+    nc1
 </form>
 
 <br>
@@ -34,7 +46,8 @@
 <form name="first">
     <input type="radio">u
     <input type="radio" name="two">n2
-    <input type="radio"checked name="two">nc2
+    <input type="radio" name="two">n2
+    <input type="radio" checked name="two">nc2
     <input type="radio" name="one">n1
     <input type="radio" name="one">n1
     <input type="radio" checked>uc
@@ -47,16 +60,7 @@
     <input type="radio" checked name="one">nc1
 </form>
 
-<!--<input type="radio" checked>-->
-<!--&lt;!&ndash;<input type="radio" name="two">&ndash;&gt;-->
-<!--&lt;!&ndash;<input type="radio" checked name="two">&ndash;&gt;-->
-<!--&lt;!&ndash;<input type="radio" checked name="two">&ndash;&gt;-->
-<!--&lt;!&ndash;<input type="radio" checked name="one">&ndash;&gt;-->
-<!--&lt;!&ndash;<input type="radio" name="two">&ndash;&gt;-->
-<!--<input type="radio" checked>-->
-<!--<input type="radio" checked>-->
-<!--<input type="radio" >-->
-<!--<input type="radio" checked name="one">-->
+
 
 
 <style>
@@ -69,6 +73,7 @@
   import {FirstConnectedCallbackMixin} from "../FirstConnectedCallbackMixin.js";
   import {} from "../CustomElementsMix.js";
   import {TranslateClickToChangeRadio, ChangeTogglesCheckedRadio} from "../ClickToChange.js";
+  import {KeypressToClick} from  "../../lib/events/KeypressToClick.js"
 
   const checkedPseudoKey = Math.random() + 1;  //this should probably be exportable.
 
@@ -83,12 +88,11 @@
 
     firstConnectedCallback() {
 
-      this.addEventListener("change", e=> console.log(e.relatedTarget))
+       this.setAttribute("tabindex", "1"); // ???
 
-
+      this.addEventListener("change", e => console.log(e.relatedTarget))
       const nonGroupedChecked = document.querySelectorAll("custom-input:not([name])[checked]");
       const groupNames = [];
-
 
       // get all possible group names and push only unique
       document.querySelectorAll(this.tagName + "[name]").forEach(item => {
@@ -97,13 +101,11 @@
           groupNames.push(value)
       });
 
-
       const formElements = document.querySelectorAll("form");
       for (const formElement of formElements) {
         //each item inside form has .form property which define its form
         const allChildren = formElement.querySelectorAll(this.tagName);
         allChildren.forEach(item => item.form = formElement); // define .form property
-
 
         // select all items from group and get only last, i.e all previous with
         const lastInGroup = [];
@@ -157,6 +159,6 @@
   }
 
   customElements.mix("custom-input",
-    [ChangeTogglesCheckedRadio, TranslateClickToChangeRadio, markDefaultChecked, customInput])
+    [ChangeTogglesCheckedRadio, TranslateClickToChangeRadio, KeypressToClick, markDefaultChecked, customInput])
 
 </script>
