@@ -26,31 +26,35 @@ export class ChangeTogglesChecked extends HTMLElement {
 }
 
 
-function defaultChecked(target) {
+function getRelatedTarget(target) {
   let groupName = target.getAttribute('name');
-  const groupItems = target.getRootNode().querySelectorAll(`[checked][name=${groupName}]`);
-  let relatedTarget = groupItems[groupItems.length - 1]; // last item with "checked" attribute
-  const isCheckedProperty = groupItems[groupItems.length - 1].checked;  //browser define .checked to currently checked item.
-  // After second selection attribute will not to be changed (neither removed nor added), but browser define .checked property on the element
-
-  // if user click second time querySelector above will return the same item, but browser will remove .checked from it
-  if (!isCheckedProperty)  // browser does not add new attributes to the element, it only use .checked attribute, so we need to get all items in the group. Single default checked radioBtns can`t to be changed
-    for (const item of target.getRootNode().querySelectorAll(`[name=${groupName}]`)) {
+  if (!groupName)
+    return target;
+  // 1. try to select items :checked
+  let groupItems = target.form.querySelectorAll(`[checked][name=${groupName}]`)
+  // 2. if no such items and all items are unchecked, select group
+  if (!groupItems.length)
+    groupItems = target.form.querySelectorAll(`[name=${groupName}]`); //todo: ugly, but if noone item from group does not check as :checked, this means that current target must be relatedTarget
+  //if some items marked with :checked (step 1 selector), we defined it as .checked manually inside firstConnectedCallback()
+  const isCheckedProperty = groupItems[groupItems.length - 1].checked;
+  // If all items was unchecked by default (without :checked)
+  // After repeated selection attribute will NOT to be changed (neither removed nor added), but browser must define .checked property on the element. Element can be unchecked but contain :checked
+  if (!isCheckedProperty)
+    for (const item of groupItems)
       if (item.checked)
-       return item;
-    }
+        return item;
+  // first selection
+  return isCheckedProperty ? groupItems[groupItems.length - 1] : target;
 
-  return relatedTarget;
 }
 
 
 function clickToChangeRadio() {
   if (this.checked)
-    return this.checked = !this.checked;
+    return
   const change = new Event('change', {bubbles: true});
-  const relatedTarget = defaultChecked(this);
-  if (relatedTarget)
-    change.relatedTarget = relatedTarget;
+  const relatedTarget = getRelatedTarget(this);
+  change.relatedTarget = relatedTarget;
   this.dispatchEvent(change);
 }
 
