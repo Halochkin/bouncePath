@@ -61,8 +61,6 @@
 </form>
 
 
-
-
 <style>
     input {
         display: inline-block;
@@ -73,7 +71,7 @@
   import {FirstConnectedCallbackMixin} from "../FirstConnectedCallbackMixin.js";
   import {} from "../CustomElementsMix.js";
   import {TranslateClickToChangeRadio, ChangeTogglesCheckedRadio} from "../ClickToChange.js";
-  import {KeypressToClick} from  "../../lib/events/KeypressToClick.js"
+  import {KeypressToClick} from "../../lib/events/KeypressToClick.js"
 
   const checkedPseudoKey = Math.random() + 1;  //this should probably be exportable.
 
@@ -88,7 +86,7 @@
 
     firstConnectedCallback() {
 
-       this.setAttribute("tabindex", "1"); // ???
+      this.setAttribute("tabindex", "1"); // ???
 
       this.addEventListener("change", e => console.log(e.relatedTarget))
       const nonGroupedChecked = document.querySelectorAll("custom-input:not([name])[checked]");
@@ -123,6 +121,18 @@
         }
       }
     }
+
+    static get observedAttributes() {
+      return ["name"]
+    }
+
+    attributeChangedCallback(name, oldValue, newValue) {
+      if (newValue !== "radio")
+        return;
+      // todo: remove component ??
+      document.body.removeChild(this);
+    }
+
   }
 
   class customInput extends FirstConnectedCallbackMixin(HTMLElement) {
