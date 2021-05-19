@@ -1,0 +1,127 @@
+<long-press-element long-press></long-press-element>
+
+<!--// long click mixin implementation: https://github.com/orstavik/bounce/blob/a8194f61823b6d32ce4b3bfeff56c5302b5d1ec9/docs/4_EventElements/OldJoiEvent/4_EventSequence/demo/long-press-ChangeOfHeart.js-->
+
+<script type="module">
+  window.EventListenerOptions = Object.assign(window.EventListenerOptions || {}, {
+    PREVENTABLE_NONE: 0,   // the listener is not blocked by preventDefault, nor does it trigger preventDefault.     //this is the same as passive: true
+    PREVENTABLE_SOFT: 1,   // the listener is blocked by preventDefault, and *may or may not* trigger preventDefault.
+    PREVENTABLE: 2,        // the listener is blocked by preventDefault, and will always call preventDefault when invoked.
+  });
+  const checkedPseudoKey = Math.random() + 1;  //this should probably be exportable.
+
+
+  import {FirstConnectedCallbackMixin} from "../FirstConnectedCallbackMixin.js";
+  import {} from "../CustomElementsMix.js";
+
+  let primaryEvent;
+
+  var timer;
+  var duration = 300;
+
+  function dispatchPriorEvent(target, composedEvent, trigger) {
+    composedEvent.preventDefault = function () {
+      trigger.preventDefault();
+      trigger.stopImmediatePropagation ? trigger.stopImmediatePropagation() : trigger.stopPropagation();
+    };
+    composedEvent.trigger = trigger;
+    return target.dispatchEvent(composedEvent);
+  }
+
+  function onDurationComplete() {
+    if (!primaryEvent)
+      return;
+    let longPress = new CustomEvent("long-press-active", {bubbles: true, composed: true, detail: duration});
+    dispatchPriorEvent(primaryEvent.target, longPress, primaryEvent);
+    timer = undefined;
+  }
+
+  function onMousedown(e) {
+    if (e.button !== 0)                                     //[3]
+      return;
+    primaryEvent = e;                                       //[4]
+    this.setAttributeNode(document.createAttribute("is-longer"), checkedPseudoKey);  //add mouseup
+    timer = setTimeout(onDurationComplete, duration);
+    primaryEvent.target.classList.add("long-press");
+    let longPress = new CustomEvent("long-press-start", {bubbles: true, composed: true, detail: duration});
+    dispatchPriorEvent(e.target, longPress, e);
+  }
+
+  function onMouseup(e) {
+    if (!primaryEvent || e.button !== 0)
+      return;
+    var duration = e.timeStamp - primaryEvent.timeStamp;
+    if (duration > 300) {
+      var longPress = new CustomEvent("long-press", {bubbles: true, composed: true, detail: {duration: duration}});
+      dispatchPriorEvent(e.target, longPress, e);
+    }
+    primaryEvent = undefined;
+  }
+
+  class mouseUpToLongPress extends HTMLElement {
+    static get observedAttributes() {
+      return ["is-longer"]
+    }
+
+    attributeChangedCallback(name, oldValue, newValue) {
+      this.removeAttribute("is-longer");
+      this.addEventListener('mouseup', onMouseup, {
+        preventable: EventListenerOptions.PREVENTABLE_SOFT,
+        trustedOnly: true
+      });
+    }
+  }
+
+  class mouseDownToLongPressStart extends HTMLElement {
+
+    static get observedAttributes() {
+      return ["long-press"]
+    }
+
+    attributeChangedCallback(name, oldValue, newValue) {
+      this.addEventListener('mousedown', onMousedown, {
+        preventable: EventListenerOptions.PREVENTABLE_SOFT,
+        trustedOnly: true
+      });
+    }
+  }
+
+  class LongPressElement extends FirstConnectedCallbackMixin(HTMLElement) {
+
+    connectedCallback() {
+      if (super.connectedCallback) super.connectedCallback();
+    }
+
+    firstConnectedCallback() {
+      this.attachShadow({mode: "open"});
+      this.shadowRoot.innerHTML = `
+      <style>
+       #inner {
+         height: 20px;
+         width: 80px;
+         border: 1px dashed black;
+         background-color: gray;
+       }
+      </style>
+      <div id="inner">press me for 300ms</div>
+      `;
+    }
+
+    //todo: class must include this method, if no it will produce an error. bug or feature??
+    static get observedAttributes() {
+      return []
+    }
+  }
+
+  customElements.mix("long-press-element", [LongPressElement, mouseDownToLongPressStart, mouseUpToLongPress]);
+
+</script>
+
+
+<script>
+  const element = document.querySelector("long-press-element");
+  element.addEventListener("long-press-start", e => e.target.style.color = "blue");
+  element.addEventListener("long-press", e => e.target.style.color = "red");
+
+
+</script>
