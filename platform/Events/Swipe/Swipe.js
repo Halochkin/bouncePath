@@ -7,6 +7,10 @@ window.EventListenerOptions = Object.assign(window.EventListenerOptions || {}, {
 });
 const checkedPseudoKey = Math.random() + 1;  //this should probably be exportable.
 
+const options = {
+  preventable: EventListenerOptions.PREVENTABLE_SOFT,
+  trustedOnly: true
+}
 
 function captureEvent(e, stopProp) {
   e.preventDefault();
@@ -153,35 +157,9 @@ export class mouseDownToSwipeStart extends HTMLElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (name === "start-sequence") // remove initial event listener after start sequence
-      this.removeEventListener('mousedown', mousedownInitialListener, {
-        preventable: EventListenerOptions.PREVENTABLE_SOFT,
-        trustedOnly: true
-      });
+      this.removeEventListener('mousedown', mousedownInitialListener, options);
     else  //add new initial mousedown listener when sequence ends
-      this.addEventListener('mousedown', mousedownInitialListener, {
-        preventable: EventListenerOptions.PREVENTABLE_SOFT,
-        trustedOnly: true
-      });
-  }
-}
-
-export class mouseDownToSwipeCancel extends HTMLElement {
-
-  static get observedAttributes() {
-    return ["start-sequence", "stop-sequence"]
-  }
-
-  attributeChangedCallback(name, oldValue, newValue) {
-    if (name === "start-sequence")
-      this.addEventListener('mousedown', mousedownSecondaryListener, {
-        preventable: EventListenerOptions.PREVENTABLE_SOFT,
-        trustedOnly: true
-      });
-    else
-      this.removeEventListener('mousedown', mousedownSecondaryListener, {
-        preventable: EventListenerOptions.PREVENTABLE_SOFT,
-        trustedOnly: true
-      });
+      this.addEventListener('mousedown', mousedownInitialListener, options);
   }
 }
 
@@ -192,17 +170,10 @@ export class mouseMoveToSwipeMove extends HTMLElement {
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
-
     if (name === "start-sequence")
-      this.addEventListener('mousemove', mousemoveListener, {
-        preventable: EventListenerOptions.PREVENTABLE_SOFT,
-        trustedOnly: true
-      });
+      this.addEventListener('mousemove', mousemoveListener, options);
     else
-      this.removeEventListener('mousemove', mousemoveListener, {
-        preventable: EventListenerOptions.PREVENTABLE_SOFT,
-        trustedOnly: true
-      });
+      this.removeEventListener('mousemove', mousemoveListener, options);
   }
 }
 
@@ -214,15 +185,9 @@ export class mouseUpToSwipeStop extends HTMLElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (name === "start-sequence")
-      this.addEventListener('mouseup', mouseupListener, {
-        preventable: EventListenerOptions.PREVENTABLE_SOFT,
-        trustedOnly: true
-      });
+      this.addEventListener('mouseup', mouseupListener, options);
     else
-      this.removeEventListener('mouseup', mouseupListener, {
-        preventable: EventListenerOptions.PREVENTABLE_SOFT,
-        trustedOnly: true
-      });
+      this.removeEventListener('mouseup', mouseupListener, options);
   }
 }
 
@@ -235,15 +200,9 @@ export class blurToSwipeCancel extends HTMLElement {
   attributeChangedCallback(name, oldValue, newValue) {
 
     if (name === "start-sequence")
-      this.addEventListener('blur', onBlurListener, {
-        preventable: EventListenerOptions.PREVENTABLE_SOFT,
-        trustedOnly: true
-      });
+      this.addEventListener('blur', onBlurListener, options);
     else
-      this.removeEventListener('blur', onBlurListener, {
-        preventable: EventListenerOptions.PREVENTABLE_SOFT,
-        trustedOnly: true
-      });
+      this.removeEventListener('blur', onBlurListener, options);
   }
 }
 
@@ -255,15 +214,24 @@ export class selectStart extends HTMLElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (name === "start-sequence")
-      this.addEventListener('selectstart', onSelectstartListener, {
-        preventable: EventListenerOptions.PREVENTABLE_SOFT,
-        trustedOnly: true
-      });
+      this.addEventListener('selectstart', onSelectstartListener, options);
     else
-      this.removeEventListener('selectstart', onSelectstartListener, {
-        preventable: EventListenerOptions.PREVENTABLE_SOFT,
-        trustedOnly: true
-      });
+      this.removeEventListener('selectstart', onSelectstartListener, options);
+  }
+}
+
+
+export class mouseDownToSwipeCancel extends HTMLElement {
+
+  static get observedAttributes() {
+    return ["start-sequence", "stop-sequence"]
+  }
+
+  attributeChangedCallback(name, oldValue, newValue) {
+    if (name === "start-sequence")
+      this.addEventListener('mousedown', mousedownSecondaryListener, options);
+    else
+      this.removeEventListener('mousedown', mousedownSecondaryListener, options);
   }
 }
 

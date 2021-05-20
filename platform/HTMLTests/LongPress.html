@@ -1,6 +1,9 @@
-<long-press-element long-press></long-press-element>
+<long-press-element></long-press-element>
 
 <script type="module">
+
+    /* LONG-PRESS IMPLEMENTATION https://github.com/orstavik/bounce/blob/a8194f61823b6d32ce4b3bfeff56c5302b5d1ec9/docs/4_EventElements/OldJoiEvent/4_EventSequence/demo/long-press-EventSequence.js*/
+
   window.EventListenerOptions = Object.assign(window.EventListenerOptions || {}, {
     PREVENTABLE_NONE: 0,   // the listener is not blocked by preventDefault, nor does it trigger preventDefault.     //this is the same as passive: true
     PREVENTABLE_SOFT: 1,   // the listener is blocked by preventDefault, and *may or may not* trigger preventDefault.

@@ -1,0 +1,93 @@
+<style>
+    #elem {
+        position: absolute;
+        left: 100px;
+        top: 100px;
+        height: 200px;
+        width: 200px;
+        border: 2px solid skyblue;
+        background-color: #b7e9fd;
+    }
+</style>
+<!--<script src="//cdn.rawgit.com/hammerjs/touchemulator/0.0.2/touch-emulator.js"></script>-->
+<!--<script> TouchEmulator(); </script>-->
+
+<pinch-element  id="elem" pinch></pinch-element>
+<button style="float:right" onclick="setTimeout(function(){alert('boo!')}, 2000)">Alert after 2s</button>
+
+
+<script src="//cdn.rawgit.com/hammerjs/touchemulator/0.0.2/touch-emulator.js"></script>
+<script> TouchEmulator(); </script>
+
+<script type="module">
+  import {FirstConnectedCallbackMixin} from "../../FirstConnectedCallbackMixin.js";
+  import {} from "../../CustomElementsMix.js";
+
+  import {
+    touchStartToPinchStart,
+    touchEndToPinchStart,
+    touchStartToPinchCancel,
+    touchMoveToPinchMove,
+    touchEndToPinchStop,
+    blurToPinchCancel,
+    selectStart
+  } from "./Pinch.js"
+
+
+  class customPinchElement extends FirstConnectedCallbackMixin(HTMLElement) {
+
+    connectedCallback() {
+      if (super.connectedCallback) super.connectedCallback();
+    }
+
+    //todo: if there is no observedAttributes() it will produce an error
+    static get observedAttributes() {
+      return []
+    }
+
+    firstConnectedCallback() {
+      // debugger
+      // this.innerHTML = `<div>y</div>`
+     }
+  }
+
+  customElements.mix("pinch-element",
+    [customPinchElement,touchStartToPinchStart, touchEndToPinchStart, touchStartToPinchCancel, touchMoveToPinchMove, touchEndToPinchStop, blurToPinchCancel, selectStart])
+
+</script>
+
+
+<script>
+  var element = document.querySelector("#elem");
+  var body = document.querySelector("body");
+  var startRotate = undefined;
+
+  window.addEventListener("pinch-start", e => {
+    startRotate = startRotate ? startRotate : 0;
+  });
+
+  window.addEventListener("pinch-move", e => {
+    element.style.transform = `rotate(${startRotate -= e.detail.rotation}deg)`;
+  });
+
+  window.addEventListener("pinch-stop", e => {
+    startRotate = parseFloat(element.style.transform.substring(7));
+  });
+
+  window.addEventListener("spin", e => {
+    element.style.transition = "all 0.3s cubic-bezier(0.39, 0.58, 0.57, 1)";
+    element.style.transform = `rotate(${startRotate - e.detail.rotation * 1.2}deg)`;
+    setTimeout(function () {
+      element.style.transition = undefined;
+    }, 300);
+  });
+
+  window.addEventListener("pinch-cancel", (e) => {
+    if (e.trigger.type === "blur")
+      confirm("you just got blurred!");
+    if (e.trigger.type === "mouseout")
+      confirm("you just got mouseouted!");
+    if (e.trigger.type === "mousedown")
+      confirm("you just pressed to many buttons!");
+  });
+</script>
