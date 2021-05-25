@@ -22,9 +22,7 @@
     composedEvent.trigger = trigger;
     return target.dispatchEvent(composedEvent);
   }
-
   var primaryEvent;
-
 
   function onMousedown(e) {
     if (e.button !== 0)

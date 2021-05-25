@@ -15,6 +15,7 @@ function newACCallback(mixins) {
   const attToCb = {};
   for (let mixin of mixins) {
     const cb = mixin.prototype.attributeChangedCallback;
+    if (!cb || !mixin.observedAttributes) continue;
     for (let name of mixin.observedAttributes)
       name in attToCb ? attToCb[name].push(cb) : attToCb[name] = [cb]
   }

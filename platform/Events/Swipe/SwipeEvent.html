@@ -7,14 +7,23 @@
   import {FirstConnectedCallbackMixin} from "../../FirstConnectedCallbackMixin.js";
   import {} from "../../CustomElementsMix.js";
 
+  // import {
+  //   mouseDownToSwipeStart,
+  //   mouseDownToSwipeCancel,
+  //   mouseMoveToSwipeMove,
+  //   mouseUpToSwipeStop,
+  //   blurToSwipeCancel,
+  //   selectStart
+  // } from "./Swipe.js"
+
   import {
-    mouseDownToSwipeStart,
-    mouseDownToSwipeCancel,
-    mouseMoveToSwipeMove,
-    mouseUpToSwipeStop,
+    touchStartToSwipeStart,
+    touchStartToSwipeCancel,
+    touchMoveToSwipeMove,
+    touchEndToSwipeStop,
     blurToSwipeCancel,
     selectStart
-  } from "./Swipe.js"
+  } from "./SwipeTouch.js"
 
   class customViewPort extends FirstConnectedCallbackMixin(HTMLElement) {
     connectedCallback() {
@@ -56,7 +65,8 @@
   }
 
   customElements.mix("swipe-element",
-    [customViewPort, mouseDownToSwipeStart, mouseDownToSwipeCancel, mouseMoveToSwipeMove, mouseUpToSwipeStop, blurToSwipeCancel, selectStart])
+    // [customViewPort, mouseDownToSwipeStart, mouseDownToSwipeCancel, mouseMoveToSwipeMove, mouseUpToSwipeStop, blurToSwipeCancel, selectStart])
+    [customViewPort, touchStartToSwipeStart, touchStartToSwipeCancel, touchMoveToSwipeMove, touchEndToSwipeStop, blurToSwipeCancel, selectStart])
 
 </script>
 

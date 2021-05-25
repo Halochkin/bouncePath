@@ -1,0 +1,86 @@
+<style>
+    div-swipe {
+        height: 200px;
+        width: 200px;
+        background-color: khaki;
+        display: block;
+    }
+
+
+    div-swipe * {
+        display: block;
+        top: 25%;
+        margin: auto;
+        position: relative;
+    }
+
+    span-long-press {
+        height: 100px;
+        width: 100px;
+        background-color: blue;
+    }
+
+    target {
+        height: 50px;
+        width: 50px;
+        background-color: red;
+    }
+
+</style>
+
+<div-swipe swipe>
+    <span-long-press>
+        <target></target>
+    </span-long-press>
+</div-swipe>
+
+
+<script type="module">
+  import {FirstConnectedCallbackMixin} from "../FirstConnectedCallbackMixin.js";
+  import {} from "../CustomElementsMix.js";
+
+  import {
+    mouseDownToSwipeStart,
+    mouseDownToSwipeCancel,
+    mouseMoveToSwipeMove,
+    mouseUpToSwipeStop,
+    blurToSwipeCancel,
+    selectStart
+  } from "../Events/Swipe/Swipe.js"
+
+  import {
+    mouseUpToLongPress,
+    mouseDownToLongPressStart
+  } from "../Events/LongPress/Longpress.js"
+
+
+  const divSwipeElement = document.querySelector("div-swipe");
+
+  const spanLongPressElement = document.querySelector("span-long-press");
+  const targetElement = document.querySelector("target");
+
+
+  divSwipeElement.addEventListener("swipe-start", e => divSwipeElement.style.border = "3px solid red")
+  divSwipeElement.addEventListener("long-press", e => divSwipeElement.style.border = "3px solid blue")
+
+
+  class swipeElement extends FirstConnectedCallbackMixin(HTMLElement) {
+    connectedCallback() {
+      if (super.connectedCallback) super.connectedCallback();
+    }
+  }
+
+
+  customElements.mix("div-swipe", [swipeElement,
+    mouseDownToSwipeStart,
+    mouseDownToSwipeCancel,
+    mouseMoveToSwipeMove,
+    mouseUpToSwipeStop,
+    blurToSwipeCancel,
+    selectStart])
+
+
+  customElements.mix("span-long-press", [mouseUpToLongPress,
+    mouseDownToLongPressStart,
+  ]);
+</script>

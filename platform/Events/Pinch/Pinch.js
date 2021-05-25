@@ -1,5 +1,3 @@
-// (function () {
-
 let supportsPassive = false;
 try {
   const opts = Object.defineProperty({}, "passive", {
@@ -124,17 +122,11 @@ function startSequence(target, e) {                                             
   };
   document.children[0].style.userSelect = "none";
   document.children[0].style.touchAction = "none";
-
   // Call attributeChangedCallback on each eventTranslator class to ADD listeners
+  if (target.hasAttribute("stop-sequence"))
+    target.removeAttribute("stop-sequence")
   target.setAttributeNode(document.createAttribute("start-sequence"), checkedPseudoKey); //call attributeChangedCallback on each class
-
-  // window.removeEventListener("touchstart", touchInitialListener, thirdArg);
-  // window.removeEventListener("touchend", touchInitialListener, thirdArg);
-  // window.addEventListener("touchstart", touchdownSecondaryListener, thirdArg);
-  // window.addEventListener("touchmove", touchmoveListener, thirdArg);
-  // window.addEventListener("touchend", touchendListener, thirdArg);
-  // window.addEventListener("blur", onBlurListener, thirdArg);
-  // window.addEventListener("selectstart", onSelectstartListener, thirdArg);
+  target.removeAttribute("start-sequence")
   return sequence;
 }
 
@@ -146,16 +138,10 @@ function updateSequence(sequence, e) {                                          
 function stopSequence(target) {
   document.children[0].style.userSelect = globalSequence.userSelectStart;
   document.children[0].style.touchAction = globalSequence.touchActionStart;
-
+  if (target.hasAttribute("start-sequence"))
+    target.removeAttribute("start-sequence")
   target.setAttributeNode(document.createAttribute("stop-sequence"), checkedPseudoKey); //call attributeChangedCallback on each class
-
-  // window.removeEventListener("touchmove", touchmoveListener, thirdArg);
-  // window.removeEventListener("touchend", touchendListener, thirdArg);
-  // window.removeEventListener("blur", onBlurListener, thirdArg);
-  // window.removeEventListener("selectstart", onSelectstartListener, thirdArg);
-  // window.removeEventListener("touchstart", touchdownSecondaryListener, thirdArg);
-  // window.addEventListener("touchstart", touchInitialListener, thirdArg);
-  // window.addEventListener("touchend", touchInitialListener, thirdArg);
+  target.removeAttribute("stop-sequence")
   return undefined;
 }
 
@@ -219,10 +205,6 @@ function onSelectstart(trigger) {
   trigger.preventDefault();
   trigger.stopImmediatePropagation ? trigger.stopImmediatePropagation() : trigger.stopPropagation();
 }
-
-// document.addEventListener("touchstart", touchInitialListener, thirdArg);
-// })();
-
 
 export class touchStartToPinchStart extends HTMLElement {
 
