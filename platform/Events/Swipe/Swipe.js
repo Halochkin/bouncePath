@@ -33,16 +33,35 @@ function replaceDefaultAction(target, composedEvent, trigger) {      //[3] Repla
   trigger.stopTrailingEvent = function () {
     composedEvent.stopImmediatePropagation ? composedEvent.stopImmediatePropagation() : composedEvent.stopPropagation();
   };
-  trigger.preventDefault();
+  // trigger.preventDefault();
   return setTimeout(function () {
     target.dispatchEvent(composedEvent)
   }, 0);
 }
 
+
+Object.defineProperty(MouseEvent.prototype, "x", {
+
+  set: function (value) {
+    this._x = value;
+  }
+});
+
+
 function makeSwipeEvent(name, trigger) {
-  const composedEvent = new CustomEvent("swipe-" + name, {bubbles: true, composed: true});
-  composedEvent.x = trigger.x;
-  composedEvent.y = trigger.y;
+  const composedEvent = new MouseEvent("swipe-" + name, {bubbles: true, composed: true})
+
+  const p = new Proxy(composedEvent, {
+    set: function (object, property, value) {
+      return object[property] = value;
+    }
+  });
+
+  p._x = trigger.x;
+  p._y = trigger.y;
+
+  // composedEvent.x = trigger.x;
+  // composedEvent.y = trigger.y;
   return composedEvent;
 }
 
@@ -85,20 +104,43 @@ function stopSequence(target) {
   if (target.hasAttribute("start-sequence"))
     target.removeAttribute("start-sequence")
   target.setAttributeNode(document.createAttribute("stop-sequence"), checkedPseudoKey); //call attributeChangedCallback on each class
-    target.removeAttribute("stop-sequence")
+  target.removeAttribute("stop-sequence")
   return undefined;
 }
 
+let timer;
+
+function longEnough(e) {
+  const initialEvent = globalSequence.recorded[0];
+  const lastEvent = globalSequence.recorded[globalSequence.recorded.length - 1];
+
+  const initialX = initialEvent.x;  //we swipe left-right, so need only X
+  const lastX = lastEvent.x;
+
+  const distanceX = Math.abs(lastX - initialX)
+  const composedEvent = makeSwipeEvent("start", initialEvent);    // fix
+  const target = globalSequence.target;
+
+  if (distanceX > 15) {
+    initialEvent.preventDefault();
+    initialEvent.stopImmediatePropagation();
+    replaceDefaultAction(target, composedEvent, initialEvent);
+  } else //do longpress or another gesture
+    globalSequence = stopSequence(target);
+  timer = undefined;
+}
+
 function onMousedownInitial(trigger) {
-  if (trigger.button !== 0)
+  if (trigger.button !== 0 || trigger.defaultPrevented)
     return;
   const target = filterOnAttribute(trigger, "swipe");  //fix this
   if (!target)
     return;
-  const composedEvent = makeSwipeEvent("start", trigger);    // fix
+
+  timer = setTimeout(longEnough, 100);
   captureEvent(trigger, false);
-  globalSequence = startSequence(target, composedEvent);
-  replaceDefaultAction(target, composedEvent, trigger);
+  globalSequence = startSequence(target, trigger);
+
 }
 
 function onMousedownSecondary(trigger) {
@@ -108,6 +150,7 @@ function onMousedownSecondary(trigger) {
   replaceDefaultAction(target, cancelEvent, trigger);
 }
 
+
 function onMousemove(trigger) {
   if (!globalSequence.cancelMouseout && mouseOutOfBounds(trigger)) {
     const cancelEvent = makeSwipeEvent("cancel", trigger);
@@ -116,15 +159,29 @@ function onMousemove(trigger) {
     replaceDefaultAction(target, cancelEvent, trigger);
     return;
   }
-  const composedEvent = makeSwipeEvent("move", trigger);
+
+  // here we need to dispatch swipe-start event after the difference between initial point and current point will me longer then 20? px during 10ms
+
+  // wait until swipe-start will be dispatch, can`t stop sequence here, because must cache all mousemove events
+  const composedEvent = timer ? trigger : makeSwipeEvent("move", trigger);
+  // console.log(composedEvent.type, 777);
   captureEvent(trigger, false);
   globalSequence = updateSequence(globalSequence, composedEvent);
   replaceDefaultAction(globalSequence.target, composedEvent, trigger);
 }
 
 function onMouseup(trigger) {
+
   const stopEvent = makeSwipeEvent("stop", trigger);
   if (!stopEvent) return;
+
+  // we must wait for swipe-start event to produce swipe-move
+
+  if (timer) {
+    return clearTimeout(timer)  //todo: dispatch cancel??
+  }
+
+
   captureEvent(trigger, false);
   const target = globalSequence.target;
   globalSequence = stopSequence(target);
@@ -151,10 +208,7 @@ export class mouseDownToSwipeStart extends HTMLElement {
 
   // initial mousedown listener
   firstConnectedCallback() {
-    this.addEventListener('mousedown', mousedownInitialListener, {
-      preventable: EventListenerOptions.PREVENTABLE_SOFT,
-      trustedOnly: true
-    });
+    window.addEventListener('mousedown', mousedownInitialListener, options);
   }
 
   static get observedAttributes() {
@@ -163,9 +217,9 @@ export class mouseDownToSwipeStart extends HTMLElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (name === "start-sequence") // remove initial event listener after start sequence
-      this.removeEventListener('mousedown', mousedownInitialListener, options);
+      window.removeEventListener('mousedown', mousedownInitialListener, options);
     else  //add new initial mousedown listener when sequence ends
-      this.addEventListener('mousedown', mousedownInitialListener, options);
+      window.addEventListener('mousedown', mousedownInitialListener, options);
   }
 }
 
@@ -177,13 +231,14 @@ export class mouseMoveToSwipeMove extends HTMLElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (name === "start-sequence")
-      this.addEventListener('mousemove', mousemoveListener, options);
+      window.addEventListener('mousemove', mousemoveListener, options);
     else
-      this.removeEventListener('mousemove', mousemoveListener, options);
+      window.removeEventListener('mousemove', mousemoveListener, options);
   }
 }
 
 export class mouseUpToSwipeStop extends HTMLElement {
+
 
   static get observedAttributes() {
     return ["start-sequence", "stop-sequence"]
@@ -191,9 +246,9 @@ export class mouseUpToSwipeStop extends HTMLElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (name === "start-sequence")
-      this.addEventListener('mouseup', mouseupListener, options);
+      window.addEventListener('mouseup', mouseupListener, options);
     else
-      this.removeEventListener('mouseup', mouseupListener, options);
+      window.removeEventListener('mouseup', mouseupListener, options);
   }
 }
 
@@ -206,9 +261,9 @@ export class blurToSwipeCancel extends HTMLElement {
   attributeChangedCallback(name, oldValue, newValue) {
 
     if (name === "start-sequence")
-      this.addEventListener('blur', onBlurListener, options);
+      window.addEventListener('blur', onBlurListener, options);
     else
-      this.removeEventListener('blur', onBlurListener, options);
+      window.removeEventListener('blur', onBlurListener, options);
   }
 }
 
@@ -220,9 +275,9 @@ export class selectStart extends HTMLElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (name === "start-sequence")
-      this.addEventListener('selectstart', onSelectstartListener, options);
+      window.addEventListener('selectstart', onSelectstartListener, options);
     else
-      this.removeEventListener('selectstart', onSelectstartListener, options);
+      window.removeEventListener('selectstart', onSelectstartListener, options);
   }
 }
 
@@ -235,9 +290,9 @@ export class mouseDownToSwipeCancel extends HTMLElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (name === "start-sequence")
-      this.addEventListener('mousedown', mousedownSecondaryListener, options);
+      window.addEventListener('mousedown', mousedownSecondaryListener, options);
     else
-      this.removeEventListener('mousedown', mousedownSecondaryListener, options);
+      window.removeEventListener('mousedown', mousedownSecondaryListener, options);
   }
 }
 

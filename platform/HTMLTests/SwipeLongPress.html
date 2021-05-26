@@ -1,38 +1,56 @@
 <style>
-    div-swipe {
-        height: 200px;
-        width: 200px;
+    div {
+        height: 400px;
+        width: 400px;
         background-color: khaki;
         display: block;
     }
 
-
-    div-swipe * {
+    span {
+        height: 300px;
+        width: 300px;
+        background-color: pink;
         display: block;
-        top: 25%;
+        top: 50px;
         margin: auto;
         position: relative;
     }
 
-    span-long-press {
-        height: 100px;
-        width: 100px;
-        background-color: blue;
+    div-swipe-longpress {
+        transition-duration: 0.5s;
+        display: inline-block;
+        width: 200px;
+        height: 200px;
+        position: relative;
+        overflow: hidden;
+        background-color: yellow;
+        /*margin: auto;*/
+        top: 50px;
+        left: 50px;
+        border-radius: 2px;
     }
 
-    target {
-        height: 50px;
-        width: 50px;
+    div-swipe-longpress.long-press-active {
+        transform: scale(1.2);
+        display: block;
+    }
+
+    #frame {
+        position: absolute;
+        width: 200px;
+        height: 200px;
         background-color: red;
     }
 
 </style>
 
-<div-swipe swipe>
-    <span-long-press>
-        <target></target>
-    </span-long-press>
-</div-swipe>
+<div>
+    <span>
+        <div-swipe-longpress touch-action="pan-left" pointer-distance="30" swipe long-press>
+            <div id="frame"></div>
+        </div-swipe-longpress>
+    </span>
+</div>
 
 
 <script type="module">
@@ -53,34 +71,83 @@
     mouseDownToLongPressStart
   } from "../Events/LongPress/Longpress.js"
 
-
-  const divSwipeElement = document.querySelector("div-swipe");
-
-  const spanLongPressElement = document.querySelector("span-long-press");
-  const targetElement = document.querySelector("target");
-
-
-  divSwipeElement.addEventListener("swipe-start", e => divSwipeElement.style.border = "3px solid red")
-  divSwipeElement.addEventListener("long-press", e => divSwipeElement.style.border = "3px solid blue")
-
-
-  class swipeElement extends FirstConnectedCallbackMixin(HTMLElement) {
-    connectedCallback() {
-      if (super.connectedCallback) super.connectedCallback();
-    }
-  }
-
-
-  customElements.mix("div-swipe", [swipeElement,
+  customElements.mix("div-swipe-longpress", [
+    FirstConnectedCallbackMixin,
     mouseDownToSwipeStart,
     mouseDownToSwipeCancel,
     mouseMoveToSwipeMove,
     mouseUpToSwipeStop,
     blurToSwipeCancel,
-    selectStart])
+    mouseUpToLongPress,
+    mouseDownToLongPressStart
+  ])
+
+</script>
 
 
-  customElements.mix("span-long-press", [mouseUpToLongPress,
-    mouseDownToLongPressStart,
-  ]);
+<script type="module">
+  const div = document.querySelector("div");
+  const span = document.querySelector("span");
+  const viewport = document.querySelector("div-swipe-longpress");
+
+  // <-------------------------- carousel logic ---------------------------------------
+  function colorPicker() {
+    return 'rgb(' + (Math.floor(Math.random() * 256)) + ',' + (Math.floor(Math.random() * 256)) + ',' + (Math.floor(
+      Math.random() * 256)) + ')';
+  }
+
+  let swipeStart = 0;
+  window.addEventListener("swipe-start", e => {
+    console.log("swipe-start");
+    viewport.style.border = "";
+    span.style.border = "3px solid orange"
+    // swipeStart = e.x - e.target.offsetLeft;
+    swipeStart = e._x - e.target.offsetLeft;
+  });
+
+  window.addEventListener("swipe-move", e => {
+    span.style.border = "3px solid green";
+  })
+
+  window.addEventListener("swipe-stop", e => {
+
+    span.style.border = "3px solid red";
+
+    const frame = viewport.querySelector("#frame");
+    console.log("swipe-stop");
+    // let swipeDist = swipeStart - e.x;
+    let swipeDist = swipeStart - e._x;
+    frame.style.transitionDuration = "0.8s";
+    if (Math.abs(swipeDist) < 100) return;
+    frame.style.transform = swipeDist > 0 ? "rotate(15deg)" : "rotate(-15deg)";
+    frame.style.marginLeft = swipeDist > 0 ? "-300px" : "300px";
+    setTimeout(() => {
+
+      viewport.removeChild(frame);
+      let el = document.createElement("div");
+      el.id = "frame";
+      el.transitionDuration = "1s";
+      el.style.backgroundColor = colorPicker();
+      viewport.appendChild(el);
+    }, 500);
+  });
+  window.addEventListener("swipe-cancel", e => {
+    console.log("swipe-cancel");
+    viewport.style.border = "5px dashed red";
+  });
+  // <-------------------------- carousel logic ---------------------------------------
+
+
+  window.addEventListener("long-press-start", e => {
+    console.log("long-press-start");
+    div.style.border = "3px solid blue";
+    viewport.classList.add("long-press-active");
+  });
+
+  window.addEventListener("long-press-end", e => {
+    console.log("long-press-end");
+    div.style.border = "3px solid purple";
+    viewport.classList.remove("long-press-active");
+  });
+
 </script>

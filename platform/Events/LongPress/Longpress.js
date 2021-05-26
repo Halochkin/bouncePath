@@ -5,6 +5,11 @@ window.EventListenerOptions = Object.assign(window.EventListenerOptions || {}, {
 });
 const checkedPseudoKey = Math.random() + 1;  //this should probably be exportable.
 
+const options = {
+  preventable: EventListenerOptions.PREVENTABLE_SOFT,
+  trustedOnly: true,
+  capture: true
+}
 
 // import {FirstConnectedCallbackMixin} from "../FirstConnectedCallbackMixin.js";
 // import {} from "../CustomElementsMix.js";
@@ -13,6 +18,8 @@ let primaryEvent;
 
 var timer;
 var duration = 300;
+const target = document.querySelector("[long-press]");
+
 
 function dispatchPriorEvent(target, composedEvent, trigger) {
   composedEvent.preventDefault = function () {
@@ -26,44 +33,69 @@ function dispatchPriorEvent(target, composedEvent, trigger) {
 function onDurationComplete() {
   if (!primaryEvent)
     return;
-  let longPress = new CustomEvent("long-press-active", {bubbles: true, composed: true, detail: duration});
+  // let longPress = new CustomEvent("long-press-active", {bubbles: true, composed: true, detail: duration});
+  let longPress = new CustomEvent("long-press-start", {bubbles: true, composed: true, detail: duration});
+
+
   dispatchPriorEvent(primaryEvent.target, longPress, primaryEvent);
   timer = undefined;
+  primaryEvent.preventDefault(); //todo: test it
 }
 
 function onMousedown(e) {
-  if (e.button !== 0)                                     //[3]
+  if (e.button !== 0|| e.defaultPrevented)                                     //[3]
+    return;
+  if(!target)
     return;
   primaryEvent = e;                                       //[4]
-  this.setAttributeNode(document.createAttribute("is-longer"), checkedPseudoKey);  //add mouseup
+  target.setAttributeNode(document.createAttribute("add-mouseup"), checkedPseudoKey);  //add mouseup
+  target.removeAttribute("add-mouseup");
+
   timer = setTimeout(onDurationComplete, duration);
-  primaryEvent.target.classList.add("long-press");
-  let longPress = new CustomEvent("long-press-start", {bubbles: true, composed: true, detail: duration});
-  dispatchPriorEvent(e.target, longPress, e);
+
+  // let longPress = new CustomEvent("long-press-start", {bubbles: true, composed: true, detail: duration});
+  // dispatchPriorEvent(e.target, longPress, e);
+
 }
 
 function onMouseup(e) {
-  if (!primaryEvent || e.button !== 0)
+
+
+  if (e.button !== 0)                                     //[3]
     return;
-  var duration = e.timeStamp - primaryEvent.timeStamp;
-  if (duration > 300) {
-    var longPress = new CustomEvent("long-press", {bubbles: true, composed: true, detail: {duration: duration}});
+
+
+
+  if (timer) {
+    clearTimeout(timer);
+    let longPress = new CustomEvent("long-press-endSequence", {bubbles: true, composed: true, detail: duration});
+    dispatchPriorEvent(e.target, longPress, e);
+  } else {
+    let longPress = new CustomEvent("long-press-end", {bubbles: true, composed: true, detail: duration});
     dispatchPriorEvent(e.target, longPress, e);
   }
-  primaryEvent = undefined;
+  target.setAttributeNode(document.createAttribute("remove-mouseup"), checkedPseudoKey);  //add mouseup
+  target.removeAttribute("remove-mouseup");
+  primaryEvent = undefined;                               //[7]
+
 }
+
+
+
 
 export class mouseUpToLongPress extends HTMLElement {
   static get observedAttributes() {
-    return ["is-longer"]
+    return ["add-mouseup", "remove-mouseup"]
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
-    this.removeAttribute("is-longer");
-    this.addEventListener('mouseup', onMouseup, {
-      preventable: EventListenerOptions.PREVENTABLE_SOFT,
-      trustedOnly: true
-    });
+    if (name === "add-mouseup"){
+      window.addEventListener('mouseup', onMouseup, options);
+    }
+    else{
+      window.removeEventListener("mouseup", onMouseup, options);
+    }
+
   }
 }
 
@@ -74,9 +106,6 @@ export class mouseDownToLongPressStart extends HTMLElement {
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
-    this.addEventListener('mousedown', onMousedown, {
-      preventable: EventListenerOptions.PREVENTABLE_SOFT,
-      trustedOnly: true
-    });
+    window.addEventListener('mousedown', onMousedown, options);
   }
 }

@@ -7,33 +7,30 @@
   import {FirstConnectedCallbackMixin} from "../../FirstConnectedCallbackMixin.js";
   import {} from "../../CustomElementsMix.js";
 
-  // import {
-  //   mouseDownToSwipeStart,
-  //   mouseDownToSwipeCancel,
-  //   mouseMoveToSwipeMove,
-  //   mouseUpToSwipeStop,
-  //   blurToSwipeCancel,
-  //   selectStart
-  // } from "./Swipe.js"
-
   import {
-    touchStartToSwipeStart,
-    touchStartToSwipeCancel,
-    touchMoveToSwipeMove,
-    touchEndToSwipeStop,
+    mouseDownToSwipeStart,
+    mouseDownToSwipeCancel,
+    mouseMoveToSwipeMove,
+    mouseUpToSwipeStop,
     blurToSwipeCancel,
     selectStart
-  } from "./SwipeTouch.js"
+  } from "./Swipe.js"
 
-  class customViewPort extends FirstConnectedCallbackMixin(HTMLElement) {
+  // import {
+  //   touchStartToSwipeStart,
+  //   touchStartToSwipeCancel,
+  //   touchMoveToSwipeMove,
+  //   touchEndToSwipeStop,
+  //   blurToSwipeCancel,
+  //   selectStart
+  // } from "./SwipeTouch.js"
+
+  class customViewPort extends HTMLElement {
     connectedCallback() {
       if (super.connectedCallback) super.connectedCallback();
     }
 
-    //todo: if there is no observedAttributes() it will produce an error
-    static get observedAttributes() {
-      return []
-    }
+
 
     firstConnectedCallback() {
       this.attachShadow({mode: "open"});
@@ -65,8 +62,8 @@
   }
 
   customElements.mix("swipe-element",
-    // [customViewPort, mouseDownToSwipeStart, mouseDownToSwipeCancel, mouseMoveToSwipeMove, mouseUpToSwipeStop, blurToSwipeCancel, selectStart])
-    [customViewPort, touchStartToSwipeStart, touchStartToSwipeCancel, touchMoveToSwipeMove, touchEndToSwipeStop, blurToSwipeCancel, selectStart])
+    [customViewPort, mouseDownToSwipeStart, mouseDownToSwipeCancel, mouseMoveToSwipeMove, mouseUpToSwipeStop, blurToSwipeCancel, selectStart, FirstConnectedCallbackMixin])
+    // [customViewPort, touchStartToSwipeStart, touchStartToSwipeCancel, touchMoveToSwipeMove, touchEndToSwipeStop, blurToSwipeCancel, selectStart])
 
 </script>
 
@@ -85,15 +82,17 @@
   let swipeStart = 0;
   window.addEventListener("swipe-start", e => {
     console.log("swipe-start");
-    viewport.style.border = "";
-    swipeStart = e.x - e.target.offsetLeft;
+    viewport.style.border = "1px solid blue";
+    // swipeStart = e.x - e.target.offsetLeft;
+    swipeStart = e._x - e.target.offsetLeft;
   });
   window.addEventListener("swipe-stop", e => {
     const swipeElement = document.querySelector("swipe-element");
     const viewport = swipeElement.shadowRoot.querySelector("#viewport");
     const frame = swipeElement.shadowRoot.querySelector("#frame");
     console.log("swipe-stop");
-    let swipeDist = swipeStart - e.x;
+    // let swipeDist = swipeStart - e.x;
+    let swipeDist = swipeStart - e._x;
     frame.style.transitionDuration = "0.8s";
     if (Math.abs(swipeDist) < 100) return;
     frame.style.transform = swipeDist > 0 ? "rotate(15deg)" : "rotate(-15deg)";
@@ -107,6 +106,9 @@
       el.style.backgroundColor = colorPicker();
       viewport.appendChild(el);
     }, 500);
+
+    viewport.style.border = "";
+
   });
   window.addEventListener("swipe-cancel", e => {
     console.log("swipe-cancel");
