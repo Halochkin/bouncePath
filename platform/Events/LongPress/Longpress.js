@@ -59,13 +59,8 @@ function onMousedown(e) {
 }
 
 function onMouseup(e) {
-
-
   if (e.button !== 0)                                     //[3]
     return;
-
-
-
   if (timer) {
     clearTimeout(timer);
     let longPress = new CustomEvent("long-press-endSequence", {bubbles: true, composed: true, detail: duration});
@@ -77,11 +72,7 @@ function onMouseup(e) {
   target.setAttributeNode(document.createAttribute("remove-mouseup"), checkedPseudoKey);  //add mouseup
   target.removeAttribute("remove-mouseup");
   primaryEvent = undefined;                               //[7]
-
 }
-
-
-
 
 export class mouseUpToLongPress extends HTMLElement {
   static get observedAttributes() {
