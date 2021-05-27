@@ -7,23 +7,23 @@
   import {FirstConnectedCallbackMixin} from "../../FirstConnectedCallbackMixin.js";
   import {} from "../../CustomElementsMix.js";
 
-  import {
-    mouseDownToSwipeStart,
-    mouseDownToSwipeCancel,
-    mouseMoveToSwipeMove,
-    mouseUpToSwipeStop,
-    blurToSwipeCancel,
-    selectStart
-  } from "./Swipe.js"
-
   // import {
-  //   touchStartToSwipeStart,
-  //   touchStartToSwipeCancel,
-  //   touchMoveToSwipeMove,
-  //   touchEndToSwipeStop,
+  //   mouseDownToSwipeStart,
+  //   mouseDownToSwipeCancel,
+  //   mouseMoveToSwipeMove,
+  //   mouseUpToSwipeStop,
   //   blurToSwipeCancel,
   //   selectStart
-  // } from "./SwipeTouch.js"
+  // } from "./Swipe.js"
+
+  import {
+    touchStartToSwipeStart,
+    touchStartToSwipeCancel,
+    touchMoveToSwipeMove,
+    touchEndToSwipeStop,
+    blurToSwipeCancel,
+    selectStart
+  } from "./SwipeTouch.js"
 
   class customViewPort extends HTMLElement {
     connectedCallback() {
@@ -62,8 +62,8 @@
   }
 
   customElements.mix("swipe-element",
-    [customViewPort, mouseDownToSwipeStart, mouseDownToSwipeCancel, mouseMoveToSwipeMove, mouseUpToSwipeStop, blurToSwipeCancel, selectStart, FirstConnectedCallbackMixin])
-    // [customViewPort, touchStartToSwipeStart, touchStartToSwipeCancel, touchMoveToSwipeMove, touchEndToSwipeStop, blurToSwipeCancel, selectStart])
+    // [customViewPort, mouseDownToSwipeStart, mouseDownToSwipeCancel, mouseMoveToSwipeMove, mouseUpToSwipeStop, blurToSwipeCancel, selectStart, FirstConnectedCallbackMixin])
+    [customViewPort, touchStartToSwipeStart, touchStartToSwipeCancel, touchMoveToSwipeMove, touchEndToSwipeStop, blurToSwipeCancel, selectStart, FirstConnectedCallbackMixin])
 
 </script>
 
@@ -84,7 +84,7 @@
     console.log("swipe-start");
     viewport.style.border = "1px solid blue";
     // swipeStart = e.x - e.target.offsetLeft;
-    swipeStart = e._x - e.target.offsetLeft;
+    swipeStart = e.x - e.target.offsetLeft;
   });
   window.addEventListener("swipe-stop", e => {
     const swipeElement = document.querySelector("swipe-element");
@@ -92,7 +92,7 @@
     const frame = swipeElement.shadowRoot.querySelector("#frame");
     console.log("swipe-stop");
     // let swipeDist = swipeStart - e.x;
-    let swipeDist = swipeStart - e._x;
+    let swipeDist = swipeStart - e.x;
     frame.style.transitionDuration = "0.8s";
     if (Math.abs(swipeDist) < 100) return;
     frame.style.transform = swipeDist > 0 ? "rotate(15deg)" : "rotate(-15deg)";

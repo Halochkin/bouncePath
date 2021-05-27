@@ -1,5 +1,3 @@
-// (function () {
-
 window.EventListenerOptions = Object.assign(window.EventListenerOptions || {}, {
   PREVENTABLE_NONE: 0,   // the listener is not blocked by preventDefault, nor does it trigger preventDefault.     //this is the same as passive: true
   PREVENTABLE_SOFT: 1,   // the listener is blocked by preventDefault, and *may or may not* trigger preventDefault.
@@ -53,11 +51,26 @@ function replaceDefaultAction(target, composedEvent, trigger) {      //[3] Repla
   }, 0);
 }
 
+/*
+ swipeStamp or relatedEvent?
+
+timeStamp is created when the swipe-start event is dispatched. But. The swipe-start is a delayed event. It needs to have
+both the timeStamp for when the event was dispatched, but also the timestamp for the touchstart event that for the user
+represented the start of the swipe.
+
+There are two ways to do that.
+1. add a second timeStamp to the event, one timeStamp for the swipe-start event dispatch and one timeStamp for the touchstart dispatch.
+2. add swipeEventStart.touchstartEvent which would then hold the pointer to the touchstart event that the swipe is mapping.
+* */
+
 function makeSwipeEvent(name, trigger) {
-  const composedEvent = new CustomEvent("swipe-" + name, {
-    bubbles: true,
-    composed: true,
-  });
+  const composedEvent = new TouchEvent("swipe-" + name, trigger);
+  if (name === "start") {
+    /*1.*/
+    composedEvent.swipeStamp = trigger.timestamp;
+    /*2.*/
+    composedEvent.touchstartEvent = trigger;
+  }
   composedEvent.x = trigger.changedTouches ? parseInt(trigger.changedTouches[0].clientX) : trigger.x;
   composedEvent.y = trigger.changedTouches ? parseInt(trigger.changedTouches[0].clientY) : trigger.y;
   return composedEvent;
@@ -104,6 +117,32 @@ function stopSequence(target) {
   return undefined;
 }
 
+let timer;
+
+function longEnough(e) {
+  const initialEvent = globalSequence.recorded[0];
+  const lastEvent = globalSequence.recorded[globalSequence.recorded.length - 1];
+
+  const initialX = parseInt(initialEvent.changedTouches[0].clientX);  //todo: do we need both x and y?
+  const lastX = parseInt(lastEvent.changedTouches[0].clientX);
+
+  const initialY = parseInt(initialEvent.changedTouches[0].clientY);  //todo: do we need both x and y?
+  const lastY = parseInt(lastEvent.changedTouches[0].clientY);
+
+  const distanceX = Math.abs(lastX - initialX);
+  const distanceY = Math.abs(lastY - initialY);
+  const composedEvent = makeSwipeEvent("start", initialEvent);
+  const target = globalSequence.target;
+
+  if (distanceX > 15 || distanceY > 15) {
+    initialEvent.preventDefault();
+    // initialEvent.stopImmediatePropagation(); //
+    replaceDefaultAction(target, composedEvent, initialEvent);
+  } else //do longpress or another gesture
+    globalSequence = stopSequence(target);
+  timer = undefined;
+}
+
 
 function onTouchInitial(trigger) {
   if (trigger.defaultPrevented)
@@ -113,10 +152,9 @@ function onTouchInitial(trigger) {
   const target = filterOnAttribute(trigger, "swipe");
   if (!target)
     return;
-  const composedEvent = makeSwipeEvent("start", trigger);
+  timer = setTimeout(longEnough, 100);
   captureEvent(trigger, false);
-  globalSequence = startSequence(target, composedEvent);
-  replaceDefaultAction(target, composedEvent, trigger);
+  globalSequence = startSequence(target, trigger);
 }
 
 function onTouchdownSecondary(trigger) {
@@ -127,7 +165,8 @@ function onTouchdownSecondary(trigger) {
 }
 
 function onTouchmove(trigger) {
-  const composedEvent = makeSwipeEvent("move", trigger);
+  // wait until swipe-start will be dispatch, can`t stop sequence here, because we must cache all mousemove events to use it inside timeout callback
+  const composedEvent = timer ? trigger : makeSwipeEvent("move", trigger);
   captureEvent(trigger, false);
   globalSequence = updateSequence(globalSequence, composedEvent);
   replaceDefaultAction(globalSequence.target, composedEvent, trigger);
@@ -137,6 +176,9 @@ function onTouchend(trigger) {
   trigger.preventDefault();
   const stopEvent = makeSwipeEvent("stop", trigger);
   if (!stopEvent) return;
+  if (timer) {
+    return clearTimeout(timer)
+  }
   captureEvent(trigger, false);
   const target = globalSequence.target;
   globalSequence = stopSequence(target);

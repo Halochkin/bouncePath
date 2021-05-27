@@ -1,4 +1,16 @@
-// (function () {
+/*
+*
+ You have a situation: two different elements listen for long-press and swipe for the same inner target.
+ Now, both long-press and swipe shouldn't run at the same time, they should be preventDefault-sensitive to each other.
+ This means that as soon as one of the gesture mixins switch from maybeObservationMode and to activeTriggeredMode,
+ then it should alert the other gesture mixins for touch events that it has activated. It does so, by calling preventDefault()
+ on the initial touchstart event that started the maybeObservationMode.
+
+ preventDefault on touchstart when it kicks in. When a touch swipe mixin decides that this is a swipe, it needs to call
+ touchstartEvent.preventDefault(). This communicates to the other mixins, such as touch-long-press, that also might
+ observe this touch sequence, that they do should be blocked. Both such mixins also needs to check for defaultPrevented
+ on the touchStartEvent during the initial observation, so that they don't start a second gesture for the same event.
+  */
 
 window.EventListenerOptions = Object.assign(window.EventListenerOptions || {}, {
   PREVENTABLE_NONE: 0,   // the listener is not blocked by preventDefault, nor does it trigger preventDefault.     //this is the same as passive: true
@@ -40,26 +52,39 @@ function replaceDefaultAction(target, composedEvent, trigger) {      //[3] Repla
 }
 
 
-Object.defineProperty(MouseEvent.prototype, "x", {
 
-  set: function (value) {
-    this._x = value;
-  }
-});
+/*
+ swipeStamp or relatedEvent?
+
+timeStamp is created when the swipe-start event is dispatched. But. The swipe-start is a delayed event. It needs to have
+both the timeStamp for when the event was dispatched, but also the timestamp for the touchstart event that for the user
+represented the start of the swipe.
+
+There are two ways to do that.
+1. add a second timeStamp to the event, one timeStamp for the swipe-start event dispatch and one timeStamp for the touchstart dispatch.
+2. add swipeEventStart.touchstartEvent which would then hold the pointer to the touchstart event that the swipe is mapping.
+* */
+
+// function makeSwipeDetail(initial, composed){
+//   const initialTimestamp = initial.timestamp;
+// }
 
 
 function makeSwipeEvent(name, trigger) {
   const composedEvent = new MouseEvent("swipe-" + name, {bubbles: true, composed: true})
+
+
 
   const p = new Proxy(composedEvent, {
     set: function (object, property, value) {
       return object[property] = value;
     }
   });
-
   p._x = trigger.x;
   p._y = trigger.y;
+  p.timeStamp = 123;
 
+  // p._detail = details;
   // composedEvent.x = trigger.x;
   // composedEvent.y = trigger.y;
   return composedEvent;
@@ -113,17 +138,18 @@ let timer;
 function longEnough(e) {
   const initialEvent = globalSequence.recorded[0];
   const lastEvent = globalSequence.recorded[globalSequence.recorded.length - 1];
-
-  const initialX = initialEvent.x;  //we swipe left-right, so need only X
+  const initialX = initialEvent.x;  //todo: do we need both x and y?
   const lastX = lastEvent.x;
-
-  const distanceX = Math.abs(lastX - initialX)
-  const composedEvent = makeSwipeEvent("start", initialEvent);    // fix
+  const initialY = initialEvent.y;  //todo: do we need both x and y?
+  const lastY = lastEvent.y;
+  const distanceX = Math.abs(lastX - initialX);
+  const distanceY = Math.abs(lastY - initialY);
+  const composedEvent = makeSwipeEvent("start", initialEvent);
   const target = globalSequence.target;
 
-  if (distanceX > 15) {
+  if (distanceX > 15 || distanceY > 15) {
     initialEvent.preventDefault();
-    initialEvent.stopImmediatePropagation();
+    // initialEvent.stopImmediatePropagation(); //
     replaceDefaultAction(target, composedEvent, initialEvent);
   } else //do longpress or another gesture
     globalSequence = stopSequence(target);
@@ -136,11 +162,9 @@ function onMousedownInitial(trigger) {
   const target = filterOnAttribute(trigger, "swipe");  //fix this
   if (!target)
     return;
-
   timer = setTimeout(longEnough, 100);
   captureEvent(trigger, false);
   globalSequence = startSequence(target, trigger);
-
 }
 
 function onMousedownSecondary(trigger) {
@@ -159,29 +183,20 @@ function onMousemove(trigger) {
     replaceDefaultAction(target, cancelEvent, trigger);
     return;
   }
-
-  // here we need to dispatch swipe-start event after the difference between initial point and current point will me longer then 20? px during 10ms
-
-  // wait until swipe-start will be dispatch, can`t stop sequence here, because must cache all mousemove events
+  // wait until swipe-start will be dispatch, can`t stop sequence here, because we must cache all mousemove events to use it inside timeout callback
   const composedEvent = timer ? trigger : makeSwipeEvent("move", trigger);
-  // console.log(composedEvent.type, 777);
   captureEvent(trigger, false);
   globalSequence = updateSequence(globalSequence, composedEvent);
   replaceDefaultAction(globalSequence.target, composedEvent, trigger);
 }
 
 function onMouseup(trigger) {
-
   const stopEvent = makeSwipeEvent("stop", trigger);
   if (!stopEvent) return;
-
   // we must wait for swipe-start event to produce swipe-move
-
   if (timer) {
-    return clearTimeout(timer)  //todo: dispatch cancel??
+    return clearTimeout(timer)  //todo: dispatch cancel-event???
   }
-
-
   captureEvent(trigger, false);
   const target = globalSequence.target;
   globalSequence = stopSequence(target);
@@ -280,7 +295,6 @@ export class selectStart extends HTMLElement {
       window.removeEventListener('selectstart', onSelectstartListener, options);
   }
 }
-
 
 export class mouseDownToSwipeCancel extends HTMLElement {
 
