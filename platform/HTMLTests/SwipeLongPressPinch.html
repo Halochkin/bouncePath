@@ -46,12 +46,14 @@
 
 <div>
     <span>
-        <div-swipe-longpress touch-action="pan-left" pointer-distance="30" swipe long-press>
+        <div-swipe-longpress touch-action="pan-left" pointer-distance="30" swipe long-press pinch>
             <div id="frame"></div>
         </div-swipe-longpress>
     </span>
 </div>
 
+<!--<script src="//cdn.rawgit.com/hammerjs/touchemulator/0.0.2/touch-emulator.js"></script>-->
+<!--<script> TouchEmulator(); </script>-->
 
 <script type="module">
   import {FirstConnectedCallbackMixin} from "../FirstConnectedCallbackMixin.js";
@@ -71,6 +73,15 @@
     mouseDownToLongPressStart
   } from "../Events/LongPress/Longpress.js"
 
+  import {
+    touchStartToPinchStart,
+    touchEndToPinchStart,
+    touchStartToPinchCancel,
+    touchMoveToPinchMove,
+    touchEndToPinchStop,
+    blurToPinchCancel,
+  } from "../Events/Pinch/Pinch.js"
+
   customElements.mix("div-swipe-longpress", [
     FirstConnectedCallbackMixin,
     mouseDownToSwipeStart,
@@ -79,8 +90,17 @@
     mouseUpToSwipeStop,
     blurToSwipeCancel,
     mouseUpToLongPress,
-    mouseDownToLongPressStart
+    mouseDownToLongPressStart,
+    touchStartToPinchStart,
+    touchEndToPinchStart,
+    touchStartToPinchCancel,
+    touchMoveToPinchMove,
+    touchEndToPinchStop,
+    blurToPinchCancel,
+    selectStart
   ])
+
+
 
 </script>
 
@@ -101,8 +121,7 @@
     console.log("swipe-start");
     viewport.style.border = "";
     span.style.border = "3px solid orange"
-    // swipeStart = e.x - e.target.offsetLeft;
-    swipeStart = e._x - e.target.offsetLeft;
+    swipeStart = e.x - e.target.offsetLeft;
   });
 
   window.addEventListener("swipe-move", e => {
@@ -115,8 +134,7 @@
 
     const frame = viewport.querySelector("#frame");
     console.log("swipe-stop");
-    // let swipeDist = swipeStart - e.x;
-    let swipeDist = swipeStart - e._x;
+    let swipeDist = swipeStart - e.x;
     frame.style.transitionDuration = "0.8s";
     if (Math.abs(swipeDist) < 100) return;
     frame.style.transform = swipeDist > 0 ? "rotate(15deg)" : "rotate(-15deg)";
@@ -149,5 +167,29 @@
     div.style.border = "3px solid purple";
     viewport.classList.remove("long-press-active");
   });
+
+  /*<---------------------------------------------------pinch----------------------------------*/
+  var startRotate = undefined;
+
+  window.addEventListener("pinch-start", e => {
+    startRotate = startRotate ? startRotate : 0;
+  });
+
+  window.addEventListener("pinch-move", e => {
+    viewport.style.transform = `rotate(${startRotate -= e.detail.rotation}deg)`;
+  });
+
+  window.addEventListener("pinch-stop", e => {
+    startRotate = parseFloat(viewport.style.transform.substring(7));
+  });
+
+  window.addEventListener("spin", e => {
+    viewport.style.transition = "all 0.3s cubic-bezier(0.39, 0.58, 0.57, 1)";
+    viewport.style.transform = `rotate(${startRotate - e.detail.rotation * 1.2}deg)`;
+    setTimeout(function () {
+      viewport.style.transition = undefined;
+    }, 300);
+  });
+
 
 </script>

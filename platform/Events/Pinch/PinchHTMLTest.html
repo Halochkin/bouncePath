@@ -34,7 +34,7 @@
   } from "./Pinch.js"
 
 
-  class customPinchElement extends FirstConnectedCallbackMixin(HTMLElement) {
+  class customPinchElement extends HTMLElement {
 
     connectedCallback() {
       if (super.connectedCallback) super.connectedCallback();
@@ -45,14 +45,10 @@
       return []
     }
 
-    firstConnectedCallback() {
-      // debugger
-      // this.innerHTML = `<div>y</div>`
-     }
   }
 
   customElements.mix("pinch-element",
-    [customPinchElement,touchStartToPinchStart, touchEndToPinchStart, touchStartToPinchCancel, touchMoveToPinchMove, touchEndToPinchStop, blurToPinchCancel, selectStart])
+    [customPinchElement,touchStartToPinchStart, touchEndToPinchStart, touchStartToPinchCancel, touchMoveToPinchMove, touchEndToPinchStop, blurToPinchCancel, selectStart, FirstConnectedCallbackMixin])
 
 </script>
 

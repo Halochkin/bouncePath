@@ -51,42 +51,15 @@ function replaceDefaultAction(target, composedEvent, trigger) {      //[3] Repla
   }, 0);
 }
 
-
-
-/*
- swipeStamp or relatedEvent?
-
-timeStamp is created when the swipe-start event is dispatched. But. The swipe-start is a delayed event. It needs to have
-both the timeStamp for when the event was dispatched, but also the timestamp for the touchstart event that for the user
-represented the start of the swipe.
-
-There are two ways to do that.
-1. add a second timeStamp to the event, one timeStamp for the swipe-start event dispatch and one timeStamp for the touchstart dispatch.
-2. add swipeEventStart.touchstartEvent which would then hold the pointer to the touchstart event that the swipe is mapping.
-* */
-
 // function makeSwipeDetail(initial, composed){
 //   const initialTimestamp = initial.timestamp;
 // }
 
-
 function makeSwipeEvent(name, trigger) {
-  const composedEvent = new MouseEvent("swipe-" + name, {bubbles: true, composed: true})
+  const composedEvent = new Event("swipe-" + name, trigger);
 
-
-
-  const p = new Proxy(composedEvent, {
-    set: function (object, property, value) {
-      return object[property] = value;
-    }
-  });
-  p._x = trigger.x;
-  p._y = trigger.y;
-  p.timeStamp = 123;
-
-  // p._detail = details;
-  // composedEvent.x = trigger.x;
-  // composedEvent.y = trigger.y;
+  composedEvent.x = trigger.x;
+  composedEvent.y = trigger.y;
   return composedEvent;
 }
 
@@ -176,7 +149,9 @@ function onMousedownSecondary(trigger) {
 
 
 function onMousemove(trigger) {
-  if (!globalSequence.cancelMouseout && mouseOutOfBounds(trigger)) {
+  if (trigger.button !== 0 || trigger.defaultPrevented)
+    return;
+  if (!globalSequence?.cancelMouseout && mouseOutOfBounds(trigger)) {
     const cancelEvent = makeSwipeEvent("cancel", trigger);
     const target = globalSequence.target;
     globalSequence = stopSequence(target);

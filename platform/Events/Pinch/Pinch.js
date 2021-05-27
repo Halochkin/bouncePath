@@ -160,6 +160,9 @@ function onTouchInitial(trigger) {
   const target = filterOnAttribute(trigger, "pinch");
   if (!target)
     return;
+  // grab touchstart event
+  if(touches === 2)
+    trigger.preventDefault;
   const composedEvent = makePinchEvent("start", trigger);
   captureEvent(trigger, false);
   globalSequence = startSequence(target, composedEvent);
