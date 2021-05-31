@@ -26,8 +26,8 @@ const options = {
 }
 
 function captureEvent(e, stopProp) {
-  e.preventDefault();
-  stopProp && e.stopImmediatePropagation ? e.stopImmediatePropagation() : e.stopPropagation();
+  // e.preventDefault();
+  // stopProp && e.stopImmediatePropagation ? e.stopImmediatePropagation() : e.stopPropagation();
 }
 
 function filterOnAttribute(e, attributeName) {                                                 //4. FilterByAttribute
@@ -50,10 +50,6 @@ function replaceDefaultAction(target, composedEvent, trigger) {      //[3] Repla
     target.dispatchEvent(composedEvent)
   }, 0);
 }
-
-// function makeSwipeDetail(initial, composed){
-//   const initialTimestamp = initial.timestamp;
-// }
 
 function makeSwipeEvent(name, trigger) {
   const composedEvent = new Event("swipe-" + name, trigger);
@@ -81,6 +77,7 @@ function startSequence(target, e) {                                             
     swipeDistance: parseInt(target.getAttribute("pointer-distance")) || 100,
     recorded: [e],
     userSelectStart: body.style.userSelect,                                                    //10. Grabtouch
+    isChecked: false
   };
   document.children[0].style.userSelect = "none";
   // Call attributeChangedCallback on each eventTranslator class to ADD listeners
@@ -108,25 +105,44 @@ function stopSequence(target) {
 
 let timer;
 
-function longEnough(e) {
+function checkSettings(currentEvent) {
+  const settings = {
+    minDist: 15,
+    // maxDist: 120,
+    maxTime: 700,
+    minTime: 50
+  }
+
   const initialEvent = globalSequence.recorded[0];
-  const lastEvent = globalSequence.recorded[globalSequence.recorded.length - 1];
+
+  // const lastEvent = globalSequence.recorded[globalSequence.recorded.length - 1];
   const initialX = initialEvent.x;  //todo: do we need both x and y?
-  const lastX = lastEvent.x;
+  const lastX = currentEvent.x;
+
   const initialY = initialEvent.y;  //todo: do we need both x and y?
-  const lastY = lastEvent.y;
-  const distanceX = Math.abs(lastX - initialX);
-  const distanceY = Math.abs(lastY - initialY);
+  const lastY = currentEvent.y;
+
+  const distX = Math.abs(lastX - initialX);
+  const distY = Math.abs(lastY - initialY);
+
+  let direction;
+
+  //todo: add direction as payload? or do swipe-left/right event?
+  if (Math.abs(distX) > Math.abs(distY))
+    direction = (distX < 0) ? "left" : "right";
+
+  const duration = currentEvent.timeStamp - initialEvent.timeStamp;
+
   const composedEvent = makeSwipeEvent("start", initialEvent);
   const target = globalSequence.target;
 
-  if (distanceX > 15 || distanceY > 15) {
+  if ((distX > settings.minDist || distY > settings.minDist) && duration < settings.maxTime && duration > settings.minTime) {
     initialEvent.preventDefault();
-    // initialEvent.stopImmediatePropagation(); //
+    globalSequence.isChecked = true;
     replaceDefaultAction(target, composedEvent, initialEvent);
-  } else //do longpress or another gesture
-    globalSequence = stopSequence(target);
-  timer = undefined;
+    return composedEvent;
+  }
+  return false
 }
 
 function onMousedownInitial(trigger) {
@@ -135,7 +151,7 @@ function onMousedownInitial(trigger) {
   const target = filterOnAttribute(trigger, "swipe");  //fix this
   if (!target)
     return;
-  timer = setTimeout(longEnough, 100);
+  // timer = setTimeout(longEnough, 100);
   captureEvent(trigger, false);
   globalSequence = startSequence(target, trigger);
 }
@@ -158,20 +174,19 @@ function onMousemove(trigger) {
     replaceDefaultAction(target, cancelEvent, trigger);
     return;
   }
-  // wait until swipe-start will be dispatch, can`t stop sequence here, because we must cache all mousemove events to use it inside timeout callback
-  const composedEvent = timer ? trigger : makeSwipeEvent("move", trigger);
+
+  const isChecked = checkSettings(trigger);
+
+  //produce swipe-move after conditions has met
+  const composedEvent = isChecked ? makeSwipeEvent("move", trigger) : trigger;
+
   captureEvent(trigger, false);
   globalSequence = updateSequence(globalSequence, composedEvent);
   replaceDefaultAction(globalSequence.target, composedEvent, trigger);
 }
 
 function onMouseup(trigger) {
-  const stopEvent = makeSwipeEvent("stop", trigger);
-  if (!stopEvent) return;
-  // we must wait for swipe-start event to produce swipe-move
-  if (timer) {
-    return clearTimeout(timer)  //todo: dispatch cancel-event???
-  }
+  const stopEvent = globalSequence.isChecked ? makeSwipeEvent("stop", trigger) : trigger;
   captureEvent(trigger, false);
   const target = globalSequence.target;
   globalSequence = stopSequence(target);

@@ -31,8 +31,10 @@ function dispatchPriorEvent(target, composedEvent, trigger) {
 }
 
 function onDurationComplete() {
-  if (!primaryEvent)
+  if (!primaryEvent || primaryEvent.defaultPrevented)
     return;
+
+
   // let longPress = new CustomEvent("long-press-active", {bubbles: true, composed: true, detail: duration});
   let longPress = new CustomEvent("long-press-start", {bubbles: true, composed: true, detail: duration});
 
