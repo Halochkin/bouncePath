@@ -25,11 +25,6 @@ const options = {
   capture: true
 }
 
-function captureEvent(e, stopProp) {
-  // e.preventDefault();
-  // stopProp && e.stopImmediatePropagation ? e.stopImmediatePropagation() : e.stopPropagation();
-}
-
 function filterOnAttribute(e, attributeName) {                                                 //4. FilterByAttribute
   for (let el = e.target; el; el = el.parentNode) {
     if (!el.hasAttribute)
@@ -51,22 +46,38 @@ function replaceDefaultAction(target, composedEvent, trigger) {      //[3] Repla
   }, 0);
 }
 
-function makeSwipeEvent(name, trigger) {
-  const composedEvent = new Event("swipe-" + name, trigger);
 
+function makeSwipeDetails(currentEvent) {
+  const initialEvent = globalSequence.recorded[0];
+  const initialX = initialEvent.x;  //todo: do we need both x and y?
+  const lastX = currentEvent.x;
+  const initialY = initialEvent.y;  //todo: do we need both x and y?
+  const lastY = currentEvent.y;
+  const distX = lastX - initialX;
+  const distY = lastY - initialY;
+  const absDistX = Math.abs(distX);
+  const absDistY = Math.abs(distY);
+  let direction = ""
+  //todo: add direction as payload? or do swipe-left/right event?
+  if (absDistX > absDistY)
+    direction = (distX < 0) ? "left" : "right";
+  const duration = currentEvent.timeStamp - initialEvent.timeStamp;
+  return [initialEvent, absDistX, absDistY, direction, duration];
+}
+
+function makeSwipeEvent(name, trigger) {
+  //todo: do we need to produce and define details, (duration, direction and initial X,Y coordinates) using separate makeDetail() function?
+  const composedEvent = new Event("swipe-" + name, trigger);
+  // it does not defines automatically, based on initial event
   composedEvent.x = trigger.x;
   composedEvent.y = trigger.y;
+  const [initialEvent, distX, distY, direction, duration] = makeSwipeDetails(trigger);
+  const details = {initialEvent, distX, distY, direction, duration}
+  composedEvent.details = details;
   return composedEvent;
 }
 
 let globalSequence;
-const mousedownInitialListener = e => onMousedownInitial(e);
-const mousedownSecondaryListener = e => onMousedownSecondary(e);
-const mousemoveListener = e => onMousemove(e);
-const mouseupListener = e => onMouseup(e);
-const onBlurListener = e => onBlur(e);
-const onSelectstartListener = e => onSelectstart(e);
-
 
 function startSequence(target, e) {                                                            //5. Event Sequence
   const body = document.querySelector("body");
@@ -103,8 +114,6 @@ function stopSequence(target) {
   return undefined;
 }
 
-let timer;
-
 function checkSettings(currentEvent) {
   const settings = {
     minDist: 15,
@@ -112,32 +121,12 @@ function checkSettings(currentEvent) {
     maxTime: 700,
     minTime: 50
   }
-
-  const initialEvent = globalSequence.recorded[0];
-
-  // const lastEvent = globalSequence.recorded[globalSequence.recorded.length - 1];
-  const initialX = initialEvent.x;  //todo: do we need both x and y?
-  const lastX = currentEvent.x;
-
-  const initialY = initialEvent.y;  //todo: do we need both x and y?
-  const lastY = currentEvent.y;
-
-  const distX = Math.abs(lastX - initialX);
-  const distY = Math.abs(lastY - initialY);
-
-  let direction;
-
-  //todo: add direction as payload? or do swipe-left/right event?
-  if (Math.abs(distX) > Math.abs(distY))
-    direction = (distX < 0) ? "left" : "right";
-
-  const duration = currentEvent.timeStamp - initialEvent.timeStamp;
-
-  const composedEvent = makeSwipeEvent("start", initialEvent);
+  const [initialEvent, distX, distY, direction, duration] = makeSwipeDetails(currentEvent);
   const target = globalSequence.target;
-
+  const composedEvent = makeSwipeEvent("start", initialEvent);
   if ((distX > settings.minDist || distY > settings.minDist) && duration < settings.maxTime && duration > settings.minTime) {
     initialEvent.preventDefault();
+    const details = {direction, duration};
     globalSequence.isChecked = true;
     replaceDefaultAction(target, composedEvent, initialEvent);
     return composedEvent;
@@ -151,8 +140,7 @@ function onMousedownInitial(trigger) {
   const target = filterOnAttribute(trigger, "swipe");  //fix this
   if (!target)
     return;
-  // timer = setTimeout(longEnough, 100);
-  captureEvent(trigger, false);
+  // captureEvent(trigger, false);
   globalSequence = startSequence(target, trigger);
 }
 
@@ -174,20 +162,18 @@ function onMousemove(trigger) {
     replaceDefaultAction(target, cancelEvent, trigger);
     return;
   }
-
   const isChecked = checkSettings(trigger);
 
   //produce swipe-move after conditions has met
   const composedEvent = isChecked ? makeSwipeEvent("move", trigger) : trigger;
-
-  captureEvent(trigger, false);
+  // captureEvent(trigger, false);
   globalSequence = updateSequence(globalSequence, composedEvent);
   replaceDefaultAction(globalSequence.target, composedEvent, trigger);
 }
 
 function onMouseup(trigger) {
   const stopEvent = globalSequence.isChecked ? makeSwipeEvent("stop", trigger) : trigger;
-  captureEvent(trigger, false);
+  // captureEvent(trigger, false);
   const target = globalSequence.target;
   globalSequence = stopSequence(target);
   replaceDefaultAction(target, stopEvent, trigger);
@@ -213,7 +199,7 @@ export class mouseDownToSwipeStart extends HTMLElement {
 
   // initial mousedown listener
   firstConnectedCallback() {
-    window.addEventListener('mousedown', mousedownInitialListener, options);
+    window.addEventListener('mousedown', onMousedownInitial, options);
   }
 
   static get observedAttributes() {
@@ -222,9 +208,9 @@ export class mouseDownToSwipeStart extends HTMLElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (name === "start-sequence") // remove initial event listener after start sequence
-      window.removeEventListener('mousedown', mousedownInitialListener, options);
+      window.removeEventListener('mousedown', onMousedownInitial, options);
     else  //add new initial mousedown listener when sequence ends
-      window.addEventListener('mousedown', mousedownInitialListener, options);
+      window.addEventListener('mousedown', onMousedownInitial, options);
   }
 }
 
@@ -236,9 +222,9 @@ export class mouseMoveToSwipeMove extends HTMLElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (name === "start-sequence")
-      window.addEventListener('mousemove', mousemoveListener, options);
+      window.addEventListener('mousemove', onMousemove, options);
     else
-      window.removeEventListener('mousemove', mousemoveListener, options);
+      window.removeEventListener('mousemove', onMousemove, options);
   }
 }
 
@@ -251,9 +237,9 @@ export class mouseUpToSwipeStop extends HTMLElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (name === "start-sequence")
-      window.addEventListener('mouseup', mouseupListener, options);
+      window.addEventListener('mouseup', onMouseup, options);
     else
-      window.removeEventListener('mouseup', mouseupListener, options);
+      window.removeEventListener('mouseup', onMouseup, options);
   }
 }
 
@@ -264,11 +250,10 @@ export class blurToSwipeCancel extends HTMLElement {
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
-
     if (name === "start-sequence")
-      window.addEventListener('blur', onBlurListener, options);
+      window.addEventListener('blur', onBlur, options);
     else
-      window.removeEventListener('blur', onBlurListener, options);
+      window.removeEventListener('blur', onBlur, options);
   }
 }
 
@@ -280,9 +265,9 @@ export class selectStart extends HTMLElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (name === "start-sequence")
-      window.addEventListener('selectstart', onSelectstartListener, options);
+      window.addEventListener('selectstart', onSelectstart, options);
     else
-      window.removeEventListener('selectstart', onSelectstartListener, options);
+      window.removeEventListener('selectstart', onSelectstart, options);
   }
 }
 
@@ -294,9 +279,9 @@ export class mouseDownToSwipeCancel extends HTMLElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (name === "start-sequence")
-      window.addEventListener('mousedown', mousedownSecondaryListener, options);
+      window.addEventListener('mousedown', onMousedownSecondary, options);
     else
-      window.removeEventListener('mousedown', mousedownSecondaryListener, options);
+      window.removeEventListener('mousedown', onMousedownSecondary, options);
   }
 }
 
