@@ -25,6 +25,11 @@ const options = {
   capture: true
 }
 
+function captureEvent(e, stopProp) {
+  // e.preventDefault();
+  stopProp && e.stopImmediatePropagation ? e.stopImmediatePropagation() : e.stopPropagation();
+}
+
 function filterOnAttribute(e, attributeName) {                                                 //4. FilterByAttribute
   for (let el = e.target; el; el = el.parentNode) {
     if (!el.hasAttribute)
@@ -46,38 +51,12 @@ function replaceDefaultAction(target, composedEvent, trigger) {      //[3] Repla
   }, 0);
 }
 
-
-function makeSwipeDetails(currentEvent) {
-  const initialEvent = globalSequence.recorded[0];
-  const initialX = initialEvent.x;  //todo: do we need both x and y?
-  const lastX = currentEvent.x;
-  const initialY = initialEvent.y;  //todo: do we need both x and y?
-  const lastY = currentEvent.y;
-  const distX = lastX - initialX;
-  const distY = lastY - initialY;
-  const absDistX = Math.abs(distX);
-  const absDistY = Math.abs(distY);
-  let direction = ""
-  //todo: add direction as payload? or do swipe-left/right event?
-  if (absDistX > absDistY)
-    direction = (distX < 0) ? "left" : "right";
-  const duration = currentEvent.timeStamp - initialEvent.timeStamp;
-  return [initialEvent, absDistX, absDistY, direction, duration];
-}
-
 function makeSwipeEvent(name, trigger) {
-  //todo: do we need to produce and define details, (duration, direction and initial X,Y coordinates) using separate makeDetail() function?
-  const composedEvent = new Event("swipe-" + name, trigger);
-  // it does not defines automatically, based on initial event
-  composedEvent.x = trigger.x;
-  composedEvent.y = trigger.y;
-  const [initialEvent, distX, distY, direction, duration] = makeSwipeDetails(trigger);
-  const details = {initialEvent, distX, distY, direction, duration}
-  composedEvent.details = details;
-  return composedEvent;
+  return new MouseEvent("swipe-" + name, trigger);
 }
 
 let globalSequence;
+
 
 function startSequence(target, e) {                                                            //5. Event Sequence
   const body = document.querySelector("body");
@@ -88,7 +67,6 @@ function startSequence(target, e) {                                             
     swipeDistance: parseInt(target.getAttribute("pointer-distance")) || 100,
     recorded: [e],
     userSelectStart: body.style.userSelect,                                                    //10. Grabtouch
-    isChecked: false
   };
   document.children[0].style.userSelect = "none";
   // Call attributeChangedCallback on each eventTranslator class to ADD listeners
@@ -114,24 +92,40 @@ function stopSequence(target) {
   return undefined;
 }
 
-function checkSettings(currentEvent) {
+let timer;
+
+function longEnough() {
+
   const settings = {
     minDist: 15,
     // maxDist: 120,
     maxTime: 700,
     minTime: 50
   }
-  const [initialEvent, distX, distY, direction, duration] = makeSwipeDetails(currentEvent);
+
+  const initialEvent = globalSequence.recorded[0];
+  const currentEvent = globalSequence.recorded[globalSequence.recorded.length - 1];
+
   const target = globalSequence.target;
   const composedEvent = makeSwipeEvent("start", initialEvent);
-  if ((distX > settings.minDist || distY > settings.minDist) && duration < settings.maxTime && duration > settings.minTime) {
+
+  const initialX = initialEvent.x;  //todo: do we need both x and y?
+  const lastX = currentEvent.x;
+  const initialY = initialEvent.y;  //todo: do we need both x and y?
+  const lastY = currentEvent.y;
+  const distX = lastX - initialX;
+  const distY = lastY - initialY;
+
+  const duration = currentEvent.timeStamp - initialEvent.timeStamp;
+
+  if ((distX > settings.minDist || distY > settings.minDist) && duration < settings.maxTime) {
     initialEvent.preventDefault();
-    const details = {direction, duration};
-    globalSequence.isChecked = true;
     replaceDefaultAction(target, composedEvent, initialEvent);
-    return composedEvent;
-  }
-  return false
+
+  } else //do longpress or another gesture
+    globalSequence = stopSequence(target);
+
+  timer = undefined;
 }
 
 function onMousedownInitial(trigger) {
@@ -140,7 +134,8 @@ function onMousedownInitial(trigger) {
   const target = filterOnAttribute(trigger, "swipe");  //fix this
   if (!target)
     return;
-  // captureEvent(trigger, false);
+  timer = setTimeout(longEnough, 100);
+  captureEvent(trigger, false);
   globalSequence = startSequence(target, trigger);
 }
 
@@ -151,10 +146,7 @@ function onMousedownSecondary(trigger) {
   replaceDefaultAction(target, cancelEvent, trigger);
 }
 
-
 function onMousemove(trigger) {
-  if (trigger.button !== 0 || trigger.defaultPrevented)
-    return;
   if (!globalSequence?.cancelMouseout && mouseOutOfBounds(trigger)) {
     const cancelEvent = makeSwipeEvent("cancel", trigger);
     const target = globalSequence.target;
@@ -162,18 +154,21 @@ function onMousemove(trigger) {
     replaceDefaultAction(target, cancelEvent, trigger);
     return;
   }
-  const isChecked = checkSettings(trigger);
-
-  //produce swipe-move after conditions has met
-  const composedEvent = isChecked ? makeSwipeEvent("move", trigger) : trigger;
-  // captureEvent(trigger, false);
+  // wait until swipe-start will be dispatch, can`t stop sequence here, because we must cache all mousemove events to use it inside timeout callback
+  const composedEvent = timer ? trigger : makeSwipeEvent("move", trigger);
+  captureEvent(trigger, false);
   globalSequence = updateSequence(globalSequence, composedEvent);
   replaceDefaultAction(globalSequence.target, composedEvent, trigger);
 }
 
 function onMouseup(trigger) {
-  const stopEvent = globalSequence.isChecked ? makeSwipeEvent("stop", trigger) : trigger;
-  // captureEvent(trigger, false);
+  const stopEvent = makeSwipeEvent("stop", trigger);
+  if (!stopEvent) return;
+  // we must wait for swipe-start event to produce swipe-move
+  if (timer) {
+    return clearTimeout(timer)  //todo: dispatch cancel-event???
+  }
+  captureEvent(trigger, false);
   const target = globalSequence.target;
   globalSequence = stopSequence(target);
   replaceDefaultAction(target, stopEvent, trigger);
@@ -250,6 +245,7 @@ export class blurToSwipeCancel extends HTMLElement {
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
+
     if (name === "start-sequence")
       window.addEventListener('blur', onBlur, options);
     else

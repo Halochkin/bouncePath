@@ -11,13 +11,10 @@ const options = {
   capture: true
 }
 
-// import {FirstConnectedCallbackMixin} from "../FirstConnectedCallbackMixin.js";
-// import {} from "../CustomElementsMix.js";
 
 let primaryEvent;
-
-var timer;
-var duration = 300;
+let timer;
+let duration = 300;
 const target = document.querySelector("[long-press]");
 
 
@@ -33,31 +30,21 @@ function dispatchPriorEvent(target, composedEvent, trigger) {
 function onDurationComplete() {
   if (!primaryEvent || primaryEvent.defaultPrevented)
     return;
-
-
-  // let longPress = new CustomEvent("long-press-active", {bubbles: true, composed: true, detail: duration});
-  let longPress = new CustomEvent("long-press-start", {bubbles: true, composed: true, detail: duration});
-
-
+  let longPress = new MouseEvent("long-press-start", primaryEvent);
   dispatchPriorEvent(primaryEvent.target, longPress, primaryEvent);
   timer = undefined;
   primaryEvent.preventDefault(); //todo: test it
 }
 
 function onMousedown(e) {
-  if (e.button !== 0|| e.defaultPrevented)                                     //[3]
+  if (e.button !== 0|| e.defaultPrevented)                 //[3]
     return;
   if(!target)
     return;
   primaryEvent = e;                                       //[4]
   target.setAttributeNode(document.createAttribute("add-mouseup"), checkedPseudoKey);  //add mouseup
   target.removeAttribute("add-mouseup");
-
   timer = setTimeout(onDurationComplete, duration);
-
-  // let longPress = new CustomEvent("long-press-start", {bubbles: true, composed: true, detail: duration});
-  // dispatchPriorEvent(e.target, longPress, e);
-
 }
 
 function onMouseup(e) {
