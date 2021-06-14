@@ -1,0 +1,57 @@
+<style>
+    #viewPort {
+        height: 300vh;
+        border: 3px solid red;
+        display: block;
+    }
+
+    in-view {
+        height: 20vw;
+        width: 20vw;
+        background-color: pink;
+        margin-top: 100vh;
+        float: right;
+    }
+
+    in-view-once{
+        height: 20vw;
+        width: 20vw;
+        background-color: gray;
+        margin-top: 150vh;
+        float: left;
+    }
+
+</style>
+
+<div id="viewPort">
+    <in-view></in-view>
+    <in-view-once></in-view-once>
+</div>
+
+
+<script type="module">
+  import {FirstConnectedCallbackMixin} from "../../FirstConnectedCallbackMixin.js";
+  import {} from "../../CustomElementsMix.js";
+  import {inViewCallback} from "./inViewMixin.js"
+  import {inViewOnceCallback} from "./inViewOnceMixin.js"
+
+
+  class enterView extends HTMLElement {
+
+    enterViewCallback() {
+      console.log("in view ");
+    }
+  }
+
+  class enterViewOnce extends HTMLElement {
+
+    enterViewOnceCallback() {
+      console.log("in view once");
+    }
+  }
+
+
+  customElements.mix("in-view", [inViewCallback, enterView])
+  customElements.mix("in-view-once", [inViewOnceCallback, enterViewOnce])
+
+</script>
