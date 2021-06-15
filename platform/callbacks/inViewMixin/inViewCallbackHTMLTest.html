@@ -50,8 +50,7 @@
     }
   }
 
-
-  customElements.mix("in-view", [inViewCallback, enterView])
-  customElements.mix("in-view-once", [inViewOnceCallback, enterViewOnce])
+  customElements.mix("in-view", [inViewCallback, FirstConnectedCallbackMixin, enterView])
+  customElements.mix("in-view-once", [inViewOnceCallback, FirstConnectedCallbackMixin, enterViewOnce])
 
 </script>

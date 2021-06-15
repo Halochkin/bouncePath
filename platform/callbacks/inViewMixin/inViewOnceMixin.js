@@ -4,23 +4,19 @@ When the element comes into view, the element adds the pseudoAttribute. Then, th
 element leaves the view, the pseudoAttribute remains.
 */
 
-let hit;
 
 const enterViewOnceObserver = new IntersectionObserver(entries => {
   for (let entry of entries)
-    if (!hit && entry.isIntersecting) {
-      hit = !hit;
-      entry.target.enterViewOnceCallback();
+    if (entry.isIntersecting && !entry.target.hasAttribute(":in-view-once")) {
+      entry.target.setAttributeNode(document.createAttribute(":in-view-once")), entry.target.enterViewOnceCallback()
     }
+
 });
 
 export class inViewOnceCallback extends HTMLElement {
-  connectedCallback() {
+  firstConnectedCallback() {
     enterViewOnceObserver.observe(this);
   }
 
-  enterViewOnceCallback() {
-    this.setAttributeNode(document.createAttribute(":in-view-once"));
-  }
 
 }

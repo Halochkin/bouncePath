@@ -3,26 +3,18 @@
  When the element leaves the view, then the pseudoAttribute is removed.
  */
 
-
-let hit;
 const enterViewObserver = new IntersectionObserver(entries => {
   for (let entry of entries) {
-    if (entry.isIntersecting || !entry.isIntersecting && hit) {
-      hit = !hit;
-      entry.target.enterViewCallback();
-    }
+    const target = entry.target;
+    if (entry.isIntersecting)
+      target.hasAttribute(":in-view") ? target.removeAttribute(":in-view") :
+        target.setAttributeNode(document.createAttribute(":in-view")),
+        target.enterViewCallback();
   }
 });
 
 export class inViewCallback extends HTMLElement {
-  connectedCallback() {
+  firstConnectedCallback() {
     enterViewObserver.observe(this);
   }
-
-
-  enterViewCallback() {
-    this.hasAttribute(":in-view") ? this.removeAttribute(":in-view") :
-      this.setAttributeNode(document.createAttribute(":in-view"));
-  }
-
 }
