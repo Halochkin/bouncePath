@@ -1,5 +1,3 @@
-let oneHit = false;
-
 
 class PinchEvent extends TouchEvent {
   constructor(type, dict) {
