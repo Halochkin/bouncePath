@@ -1,16 +1,25 @@
-let oneHit = false;
+window.EventListenerOptions = Object.assign(window.EventListenerOptions || {}, {
+  PREVENTABLE_NONE: 0,   // the listener is not blocked by preventDefault, nor does it trigger preventDefault.     //this is the same as passive: true
+  PREVENTABLE_SOFT: 1,   // the listener is blocked by preventDefault, and *may or may not* trigger preventDefault.
+  PREVENTABLE: 2,        // the listener is blocked by preventDefault, and will always call preventDefault when invoked.
+});
 
 
 class PinchEvent extends TouchEvent {
   constructor(type, dict) {
+
     super(type, dict);
+
   }
 
 
-  static tryToMakePinch(touchdown, touchmove) {
+  static tryToMakePinch(touchstart, touchmove) {
 
-    const f1Initial = touchdown.targetTouches[0];
-    const f2Initial = touchdown.targetTouches[1];
+    const calcAngle = (x = 0, y = 0) => ((Math.atan2(y, -x) * 180 / Math.PI) + 270) % 360;
+
+    const f1Initial = touchstart.targetTouches[0];
+    const f2Initial = touchstart.targetTouches[1];
+
     const x1Initial = f1Initial.pageX;
     const y1Initial = f1Initial.pageY;
     const x2Initial = f2Initial.pageX;
@@ -30,6 +39,12 @@ class PinchEvent extends TouchEvent {
     const widthLast = Math.abs(x2Last - x1Last);
     const heightLast = Math.abs(y2Last - y1Last);
     const diagonalLast = Math.sqrt(widthLast * widthLast + heightLast * heightLast);
+    const angleInitial = calcAngle(x1Initial - x2Initial, y1Initial - y2Initial);
+    const angleLast = calcAngle(x1Last - x2Last, y1Last - y2Last);
+    const rotation = angleLast - angleInitial.toFixed(3);
+
+
+    //todo: fix details
 
     if ((Math.abs(diagonalInitial) - Math.abs(diagonalLast)) < 10)
       return new PinchEvent("pinch", touchmove);
@@ -41,11 +56,15 @@ const pseudo = Math.random() + 1;  //this should probably be exportable.
 let userSelectOG, target, touchstart, lastPinchEvent; //global state
 
 function cancelPinchMaybe() {
+  if (!target)
+    return;
   target.removeAttribute(':pinch-maybe', pseudo);
   userSelectOG = touchstart = target = undefined;
 }
 
 function cancelPinch() {
+  if (!target)
+    return;
   target.dispatchEvent(new PinchEvent('pinch-cancel', lastPinchEvent));
   target.removeAttribute(':pinch', pseudo);
   target.style.userSelect = userSelectOG;
@@ -74,24 +93,38 @@ function maybePinchListener(e) {
 function tryToPinch(touchmove) {
   if (touchmove.defaultPrevented)
     return this.cancelPinchMaybe();
-  lastPinchEvent = PinchEvent.tryToMakePinch(touchmove);
-  if (!lastDragEvent)
+  lastPinchEvent = PinchEvent.tryToMakePinch(touchstart, touchmove);
+
+  if (!lastPinchEvent)
     return;
+
   touchstart.preventDefault();
   touchmove.preventDefault();
   target.removeAttribute(':pinch-maybe', pseudo);
   target.setAttributeNode(document.createAttribute(':pinch'), pseudo);
-  target.dispatchEvent(new DragEvent('pinch-start', touchstart));
+  target.dispatchEvent(new PinchEvent('pinch-start', touchstart));
   target.dispatchEvent(lastPinchEvent);
 }
 
 function touchmoveToPinch(touchmove) {
-  console.log(touchmove)
+  // if (touchmove.defaultPrevented)
+  //   return this.cancelPinchMaybe();
+  // lastPinchEvent = PinchEvent.tryToMakePinch(touchmove);
+  // if (!lastDragEvent)
+  //   return;
+  // touchstart.preventDefault();
+  // touchmove.preventDefault();
+  // target.removeAttribute(':pinch-maybe', pseudo);
+  // target.setAttributeNode(document.createAttribute(':pinch'), pseudo);
+  const evt = new PinchEvent('pinch-move', touchstart);
+  target.dispatchEvent(evt);
+  // target.dispatchEvent(lastPinchEvent);
 }
+
 
 export class PinchMaybe extends HTMLElement {
   firstConnectedCallback() {
-    this.addEventListener('mousedown', maybePinchListener, {
+    this.addEventListener('touchstart', maybePinchListener, {
       preventable: EventListenerOptions.PREVENTABLE_SOFT,
       trustedOnly: true
     });
@@ -100,7 +133,7 @@ export class PinchMaybe extends HTMLElement {
 
 export class PinchMaybeReaction extends HTMLElement {
 
-  static get observedAttribute() {
+  static get observedAttributes() {
     return [":pinch-maybe"];
   }
 
@@ -112,11 +145,13 @@ export class PinchMaybeReaction extends HTMLElement {
     if (newValue === null) {
       window.removeEventListener('touchend', cancelPinchMaybe, true);
       window.removeEventListener('touchmove', tryToPinch, true);
+      window.removeEventListener('touchstart', cancelPinchMaybe, true);
       window.removeEventListener('blur', cancelPinchMaybe, true);
       window.removeEventListener('selectstart', cancelPinchMaybe, true);
     } else {
       window.addEventListener('touchend', cancelPinchMaybe, true);
       window.addEventListener('touchmove', tryToPinch, true);
+      window.addEventListener('touchstart', cancelPinchMaybe, true);
       window.addEventListener('blur', cancelPinchMaybe, true);
       window.addEventListener('selectstart', cancelPinchMaybe, true);
     }

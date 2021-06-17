@@ -1,3 +1,18 @@
+//
+
+//Basic version
+
+//rule #2: all events propagate sync. No more async propagation for UI events. Which is good, because you can never
+//         tell if an event is async or sync.
+//rule #3: all adding of event listeners are dynamic.
+//         No more special rule that event listeners on the same target(phase) can be removed, but not added.
+
+//tip 1:   all event listeners are removed when the event stack is empty.
+//tip 2:   AT_TARGET works 'the old way', as event listeners on the innermost target.
+//         This means the sum of both capture and bubble event listeners run in insertion order, not necessarily capture before bubble.
+//         It is my opinion that it might be better to always run capture before bubble, also at_target, but
+//         the 'old way' is chosen because I guess that this will cause the least disturbances in existing web apps.
+
 import {bounceSequence, composedPath, ContextIterator, PathIterator} from "./BouncedPath.js";
 import {
   cleanupEvent,
@@ -39,10 +54,17 @@ function typeCheckListener(listen) {
 }
 
 function listenerOK(listener, type, phase, trusted) {
-  return listener.type === type &&
-    phase === 2 || (listener.capture && phase === Event.CAPTURING_PHASE) || (!listener.capture && phase === Event.BUBBLING_PHASE) &&
-    !listener.removed &&
-    (trusted || !listener.trustedOnly);
+  if(listener.type !== type)
+    return false;
+  if(listener.capture && phase === Event.BUBBLING_PHASE)
+    return false;
+  if(!listener.capture && phase === Event.CAPTURING_PHASE)
+    return false;
+  if(listener.removed)
+    return false;
+  if(listener.trustedOnly && !trusted)
+    return false;
+  return true;
 }
 
 function* ListenerIterator(target, type, phase, trusted) {
@@ -147,7 +169,7 @@ function propagate(e, innerMostTarget, root, stopped, prevented, onHost) {
       }
     }
   }
-  cleanupEvent(e);
+  cleanupEvent(e, topMostContext);
   if (e !== eventStack.shift())
     throw new Error('Critical error in EventTarget.dispatchEvent().');
   !eventStack.length && removedListeners.map(removeListenerImpl);
