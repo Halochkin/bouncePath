@@ -11,7 +11,7 @@
 </style>
 
 
-<pinch-element id="elem" ></pinch-element>
+<pinch-element id="elem"></pinch-element>
 <!--<button style="float:right" onclick="setTimeout(function(){alert('boo!')}, 2000)">Alert after 2s</button>-->
 
 
@@ -21,8 +21,6 @@
 <script type="module">
   import {FirstConnectedCallbackMixin} from "../../FirstConnectedCallbackMixin.js";
   import {} from "../../CustomElementsMix.js";
-
-
 
 
   import {PinchMaybe, PinchMaybeReaction, PinchReaction} from "./Pinchable.js"
@@ -41,7 +39,7 @@
   }
 
   customElements.mix("pinch-element",
-    [ PinchMaybeReaction,  PinchReaction, PinchMaybe, customPinchElement, FirstConnectedCallbackMixin]);
+    [PinchMaybeReaction, PinchReaction, PinchMaybe, customPinchElement, FirstConnectedCallbackMixin]);
 
 
 </script>
@@ -53,24 +51,29 @@
   var startRotate = undefined;
 
 
-
-
+  let scale = 1;
+  element.style.transition = "all 0.3s cubic-bezier(0.39, 0.58, 0.57, 1)";
 
 
   window.addEventListener("pinch-start", e => {
+    console.log(e.type);
     startRotate = startRotate ? startRotate : 0;
   });
 
   window.addEventListener("pinch-move", e => {
-    element.style.transform = `rotate(${startRotate -= e.detail.rotation}deg)`;
+    console.log(e.type);
+    element.style.transform = `scale(${scale += 0.02})`
+    // element.style.transform = `rotate(${startRotate -= e.detail.rotation}deg)`;
   });
 
-  window.addEventListener("pinch-stop", e => {
+  window.addEventListener("pinch-end", e => {
+    console.log(e.type);
+    element.style.border = `2px solid orange`;
+
     startRotate = parseFloat(element.style.transform.substring(7));
   });
 
   window.addEventListener("spin", e => {
-    element.style.transition = "all 0.3s cubic-bezier(0.39, 0.58, 0.57, 1)";
     element.style.transform = `rotate(${startRotate - e.detail.rotation * 1.2}deg)`;
     setTimeout(function () {
       element.style.transition = undefined;

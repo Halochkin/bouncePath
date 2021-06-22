@@ -1,184 +1,155 @@
-//
+//Why remove EventListenerOptions? benefit: muuuuch simpler, drawback: harder to implement passive, once must be implemented manually
 
-//Basic version
+//Bounce bubble only
 
-//rule #2: all events propagate sync. No more async propagation for UI events. Which is good, because you can never
-//         tell if an event is async or sync.
-//rule #3: all adding of event listeners are dynamic.
-//         No more special rule that event listeners on the same target(phase) can be removed, but not added.
+//rule #0:  No eventListenerOptions!! bubble only. And no event option bubbles: true/false.
+//rule #1:  bubble only. capture and at_target phase does not exist.
+//          Thus, if there are any event listener options, that must be an Object.
+//rule #2:  All events propagate sync. No more async propagation for UI events.
+//          Which is good, because you can never tell if an event is async or sync.
+//rule #3:  Event listeners can be both added and removed from the currentTarget dynamically.
+//          No more special rule that event listeners on the same target(phase) can be removed, but not added.
+//rule #4:  no stopPropagation(). No more torpedoes.
+//rule #5:  Event objects cannot be dispatched twice.
+//rule #6:  Dom events do not propagate to the window, they stop on the document.
+//rule #7:  All native events are directed at the shadowRoot of the element, if it has one.
+//          This will run default actions when an element is targeted.
+//rule #8:  preventDefault() will stop propagation into used documents.
+//          enableDefault(el) and preventDefault(el) can target a single element only.
+//rule #9:  Event listener must be a Function. No more messing around with {.handleEvent} objects.
+//rule #10: The old onclick, onmouseenter, onxyz no longer works. The only way is addEventListener(xyz, ...) .
+//rule #11: The event doesn't specify the composed: true/false.
+//          It specifies the 'root' EventTarget (element, Document, DocumentFragment).
+//          Or should this be in the dispatchEvent function. I think maybe this.
+//rule #12: You can't call .preventDefault() before event propagation.
 
-//tip 1:   all event listeners are removed when the event stack is empty.
-//tip 2:   AT_TARGET works 'the old way', as event listeners on the innermost target.
-//         This means the sum of both capture and bubble event listeners run in insertion order, not necessarily capture before bubble.
-//         It is my opinion that it might be better to always run capture before bubble, also at_target, but
-//         the 'old way' is chosen because I guess that this will cause the least disturbances in existing web apps.
+//question #x: how to implement passive: true? add a setter/getter passiveListeningOrSomething to EventTarget that
+//             will add a native event listener for touch and wheel with passive true/false instead of the default.
 
-import {bounceSequence, composedPath, ContextIterator, PathIterator} from "./BouncedPath.js";
-import {
-  cleanupEvent,
-  composedPathOG,
-  initEvent,
-  initNativeEvent,
-  preInitState,
-  preventContext,
-  stopImmediatePropagationOG,
-  updateEvent,
-} from "./Event.js";
+//question #y: the path is calculated at the outset of each dynamic inside the different documents? That kinda feels appropriate...
+//         why not? why freeze the inside of the document?
 
-window.EventListenerOptions = Object.assign(window.EventListenerOptions || {}, {
-  PREVENTABLE_NONE: 0,   // the listener is not blocked by preventDefault, nor does it trigger preventDefault.     //this is the same as passive: true
-  PREVENTABLE_SOFT: 1,   // the listener is blocked by preventDefault, and *may or may not* trigger preventDefault.
-  PREVENTABLE: 2,        // the listener is blocked by preventDefault, and will always call preventDefault when invoked.
-});
+import {bounceSequence, ContextIterator, composedPath} from "./BouncedPath.js";
+import {composedPathOG, initEvent, stopImmediatePropagationOG, updateEvent} from "./Event.js";
 
-const listeners = Symbol("listeners");
+class EventListenerRegistry {
+  constructor() {
+    this.map = {};
+    this.listsWithRemoved = [];
+  }
 
-//Rule x: reroute natively triggered window events to the html element.
-// This makes the event visible in the DOM. It is necessary to have events "visit" the DOM
-// because that makes two things possible:
-// 1. it gives us a shadowDom to add default action event listeners in.
-// 2. It gives us a good place to attach mixins with default actions that can be made visible as pseudo-attributes for example.
-function onFirstNativeListener(e) {
-  stopImmediatePropagationOG.call(e);
-  const nativeComposedPath = composedPathOG.call(e);
-  initNativeEvent(e);
-  let innerMostTarget = nativeComposedPath[0];
-  if (innerMostTarget === window || innerMostTarget === document) innerMostTarget = document.children[0];
-  //the composed: true/false is broken. We need to find the root from the native composedPath() for focus events.
-  propagate(e, innerMostTarget, nativeComposedPath[nativeComposedPath.length - 1], false, false, false);
-  // innerMostTarget.dispatchEvent(e);
-}
+  //adds the event listener function to the registry, if the function is not already added for that target and type.
+  //returns true when this is the first registered entry for this type and target.
+  add(target, type, listener) {
+    const listenersPerNode = this.map[type] || (this.map[type] = new WeakMap());
+    let listeners = listenersPerNode.get(target);
+    if (!listeners)
+      return !!listenersPerNode.set(target, [listener]);
+    if (listeners.indexOf(listener) >= 0)
+      return false;
+    const empty = listeners.every(f => !f);
+    listeners.push(listener);
+    return empty;
+  }
 
-function typeCheckListener(listen) {
-  return listen instanceof Function || listen instanceof Object && listen.handleEvent instanceof Function;
-}
+  remove(target, type, listener) {
+    const listeners = this.map[type]?.get(target);
+    if (!listeners)
+      return false;
+    const index = listeners.indexOf(listener);
+    if (index === -1)
+      return false;
+    listeners[index] = undefined;
+    this.listsWithRemoved.push(listeners);
+    return listeners.every(f => !f);
+  }
 
-function listenerOK(listener, type, phase, trusted) {
-  if(listener.type !== type)
-    return false;
-  if(listener.capture && phase === Event.BUBBLING_PHASE)
-    return false;
-  if(!listener.capture && phase === Event.CAPTURING_PHASE)
-    return false;
-  if(listener.removed)
-    return false;
-  if(listener.trustedOnly && !trusted)
-    return false;
-  return true;
-}
+  get(target, type) {
+    return this.map[type]?.get(target);
+  }
 
-function* ListenerIterator(target, type, phase, trusted) {
-  const list = target[listeners] || (target[listeners] = []);
-  for (let i = 0; i < list.length; i++)
-    if (listenerOK(list[i], type, phase, trusted))
-      yield list[i];
-}
-
-function getListener(target, type, cb, capture) {
-  target[listeners] || (target[listeners] = []);
-  return target[listeners].find(old => old.type === type && old.cb === cb && old.capture === capture && !old.removed);
-}
-
-function defaultPassiveValue(type, target) {
-  return (type === 'touchstart' || type === 'touchmove') && (target === window || target === document || target === body);
-}
-
-function addListenerImpl(l) {
-  l.target[listeners].push(l);
-  addEventListenerOG.call(l.target, l.type, l.realCb, {capture: l.capture, passive: l.passive});
-}
-
-function removeListenerImpl(l) {
-  l.target[listeners].splice(l.target[listeners].indexOf(l), 1);
-  removeEventListenerOG.call(l.target, l.type, l.realCb, {capture: l.capture, passive: l.passive});
-}
-
-const addEventListenerOG = EventTarget.prototype.addEventListener;
-EventTarget.prototype.addEventListener = function (type, cb, options) {
-  if (!typeCheckListener(cb))
-    return;
-  const capture = options instanceof Object ? options.capture : !!options;
-  if (getListener(this, type, cb, capture))
-    return;
-  const target = this;
-  const passive = options instanceof Object && 'passive' in options ? options.passive : defaultPassiveValue(type, target);
-  const once = options instanceof Object && !!options.once;
-  const preventable = +(options instanceof Object && 'preventable' in options && options.preventable);
-  const trustedOnly = options instanceof Object && !!options.trustedOnly;
-  const listener = {target, type, cb, capture, passive, once, preventable, trustedOnly};
-  listener.realCb = onFirstNativeListener.bind(listener);
-  //we don't use the listener object, but we need to bind the nativeEventListener to something to get a unique realCb.
-  addListenerImpl(listener);
-}
-
-//REMOVE EVENT LISTENERS
-const removedListeners = [];
-
-function removeListener(listener) {
-  listener && (listener.removed = true) && removedListeners.push(listener);
-}
-
-const removeEventListenerOG = EventTarget.prototype.removeEventListener;
-EventTarget.prototype.removeEventListener = function (type, cb, options) {
-  const capture = options instanceof Object ? options.capture : !!options;
-  removeListener(getListener(this, type, cb, capture));
-}
-
-// DISPATCH EVENT
-const eventStack = [];
-
-function propagate(e, innerMostTarget, root, stopped, prevented, onHost) {
-  //rule : reroute dispatch of all events on elements to their shadowRoot if not onHost: true.
-  //todo replace the onHost with a check for e.defaultPrevented?? orr just remove the onHost all together?? we don't need it, nor want it??
-  // todo this shouldnt conflict with .click() and .requestSubmit()..
-  innerMostTarget instanceof Element && !onHost && (innerMostTarget = innerMostTarget.shadowRoot);
-
-  if (eventStack.includes(e))
-    throw new Error("Failed to execute 'dispatchEvent' on 'EventTarget': The event is already being dispatched.");
-  eventStack.unshift(e);
-  const topMostContext = bounceSequence(innerMostTarget, root);
-  topMostContext.stop = stopped;
-  prevented && preventContext(topMostContext);
-  initEvent(e, composedPath(innerMostTarget, root)); //todo add in property e.topContext = true?? so that inner contexts can know whether or not they are controlled?? why? we don't really need this info??
-  main: for (let context of ContextIterator(topMostContext)) {
-    updateEvent(e, 'context', context);
-    for (let phase = 1; phase <= 3; phase++) {
-      updateEvent(e, 'eventPhase', phase);
-      for (let target of PathIterator(context.path, phase)) {
-        let first;
-        for (let listener of ListenerIterator(target, e.type, phase, e.isTrusted)) {
-          if (e.defaultPrevented && listener.preventable > 0)   //preventable: PREVENTABLE_SOFT or PREVENTABLE
-            continue;
-          !first && (first = true) && updateEvent(e, 'currentTarget', target);
-          if (listener.once)                                    //once: true
-            removeListener(listener);
-          try {
-            /*const maybePromise = */listener.cb instanceof Function ? listener.cb.call(target, e) : listener.cb.handleEvent.call(listener.cb.handleEvent, e);
-            //todo this is unnecessary, right? the browser already does this internally??
-            // maybePromise instanceof Promise && maybePromise.catch(err=> window.dispatchEvent(new ErrorEvent('Uncaught Error', {error: err, message: err.message})));
-          } catch (err) {
-            window.dispatchEvent(new ErrorEvent('Uncaught Error', {error: err, message: err.message}));
-          }
-          if (listener.preventable === 2)                       //preventable: PREVENTABLE
-            e.preventDefault();
-          if (context.stopImme)                                 //stopImmediatePropagation
-            continue main;
-        }
-        if (context.stop)                                       //stopPropagation
-          continue main;
+  cleanup() {
+    for (let listeners; listeners = this.listsWithRemoved.pop();) {
+      if (this.listsWithRemoved.indexOf(listeners) >= 0)//a list might be added twice, if so we clean it only the last time.
+        continue;
+      let length = listeners.length;
+      for (let i = 0; i < length; i++) {
+        if (listeners[i] === undefined)
+          length--, listeners.splice(i--, 1);
       }
     }
   }
-  cleanupEvent(e, topMostContext);
-  if (e !== eventStack.shift())
-    throw new Error('Critical error in EventTarget.dispatchEvent().');
-  !eventStack.length && removedListeners.map(removeListenerImpl);
 }
 
-EventTarget.prototype.dispatchEvent = function (e, options) {
-  const root = options instanceof Object && 'root' in options ? options.root : e.composed;  //options root override e.composed.
-  const {stopped, prevented} = preInitState(e);
-  propagate(e, this, root, stopped, prevented, !!options?.onHost);
+const listeners = new EventListenerRegistry();
+
+const addEventListenerOG = EventTarget.prototype.addEventListener;
+EventTarget.prototype.addEventListener = function (type, listener) {
+  listeners.add(this, type, listener) &&
+  // isNativeType(type) &&  //todo we need to add a check for native type event listeners.. Or, we could just add native event listener for all types of events, even though we don't need them.
+  addEventListenerOG.call(this, type, rerouteNativeEvents);
 };
-// todo start explanation from dispatchEvent only. second step is addEventListener take-over.
-// todo explain the event stack as an addition to the event loop
+
+const removeEventListenerOG = EventTarget.prototype.removeEventListener;
+EventTarget.prototype.removeEventListener = function (type, listener) {
+  listeners.remove(this, type, listener) &&
+  // isNativeType(type) &&  //todo we need to add a check for native type event listeners..
+  removeEventListenerOG.call(this, type, rerouteNativeEvents);
+};
+
+function rerouteNativeEvents(e) {
+  stopImmediatePropagationOG.call(e);
+  let composedPath = composedPathOG.call(e);
+  if (composedPath[0] === window) composedPath = [window, window];
+  else if (composedPath[composedPath.length - 1] === window) composedPath.pop();
+  propagate(e, composedPath[0], composedPath[composedPath.length - 1], composedPath);
+}
+
+function calculateRoot(target, root, e) {
+  if (target === window) return window;
+  if (root === false) return target.getRootNode();
+  if (root === true) return target.getRootNode({composed: true});
+  if (root instanceof Element || root instanceof DocumentFragment || root instanceof Document) return root;
+  return target.getRootNode(e);
+}
+
+EventTarget.prototype.dispatchEvent = function (e, root) {
+  propagate(e, this, calculateRoot(this, root, e));
+};
+
+// EVENT PROPAGATION
+const eventStack = [];
+
+function propagate(e, innermostTarget, root, composedPathIn) {
+  if (e.eventPhase !== Event.NONE)
+    throw new Error("Cannot dispatch the same Event twice.");
+
+  composedPathIn = composedPathIn || composedPath(innermostTarget, root);
+  if (innermostTarget.shadowRoot)
+    composedPathIn.unshift(innermostTarget = innermostTarget.shadowRoot);
+
+  eventStack.push(e);
+  initEvent(e, composedPathIn);
+  const type = e.type;
+  const topMostContext = bounceSequence(innermostTarget, root);
+  for (let context of ContextIterator(topMostContext)) {
+    updateEvent(e, 'context', context);
+    if(e.defaultPrevented)
+      continue;
+    for (let target of context.path) {
+      const list = listeners.get(target, type);
+      if (list) {
+        updateEvent(e, 'currentTarget', target);
+        for (let fun of list)
+          fun?.call(target, e);
+      }
+    }
+  }
+  updateEvent(e, 'eventPhase', Event.FINISHED);
+  updateEvent(e, 'context', topMostContext);
+  updateEvent(e, 'currentTarget', undefined);
+
+  eventStack.pop() &&
+  !eventStack.length &&
+  listeners.cleanup();
+}

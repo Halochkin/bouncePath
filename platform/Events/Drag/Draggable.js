@@ -14,89 +14,96 @@
 
 
 /*
-* mousedown=> :swipe-maybe + longEnough + cancel listener for mouseup + mousedown + blur/focusout + selectstart ?
-* longEnough => grabs by calling preventDefault on the mousedown, :swipe-maybe => :swipe-start
-*               also checks preventDefault on mousedown to cancel.
+* pointerdown=> :swipe-maybe + longEnough + cancel listener for pointerup + pointerdown + blur/focusout + selectstart ?
+* longEnough => grabs by calling preventDefault on the pointerdown, :swipe-maybe => :swipe-start
+*               also checks preventDefault on pointerdown to cancel.
 *
 *
 * :swipeMaybe=> cancel/start
 *
-* rule 1. use preventDefault on the initial trigger event such as mousedown some time *after* the fact, so to communicate with other gesture mixins.
+* rule 1. use preventDefault on the initial trigger event such as pointerdown some time *after* the fact, so to communicate with other gesture mixins.
 * rule 2. use :gesture-maybe pseudo attribute to mark the element as having a gesture that is in the maybe state.
 * rule 3. trigger secondary event listeners using the maybe-state pseudo attribute.
 * */
+
+window.EventListenerOptions = Object.assign(window.EventListenerOptions || {}, {
+  PREVENTABLE_NONE: 0,   // the listener is not blocked by preventDefault, nor does it trigger preventDefault.     //this is the same as passive: true
+  PREVENTABLE_SOFT: 1,   // the listener is blocked by preventDefault, and *may or may not* trigger preventDefault.
+  PREVENTABLE: 2,        // the listener is blocked by preventDefault, and will always call preventDefault when invoked.
+});
+
 
 class DragEvent extends MouseEvent {
   constructor(type, dict) {
     super(type, dict);
   }
 
-  static tryToMakeDrag(mousedown, mousemove) {
-    const distX = mousemove.x - mousedown.x;
-    const distY = mousemove.y - mousedown.y;
+  static tryToMakeDrag(pointerdown, pointermove) {
+    const distX = pointermove.x - pointerdown.x;
+    const distY = pointermove.y - pointerdown.y;
     if ((distY > 4 || distY < -4) || (distX > 4 || distX < -4))
-      return new DragEvent('drag', mousemove);
+      return new DragEvent('drag', pointermove);
   }
 }
 
 const pseudo = Math.random() + 1;  //this should probably be exportable.
-let userSelectOG, target, mousedown, lastDragEvent; //global state
+let userSelectOG, target, pointerdown, lastDragEvent; //global state
 
 function cancelDragMaybe() {
   target.removeAttribute(':drag-maybe', pseudo);
-  userSelectOG = mousedown = target = undefined;
+  userSelectOG = pointerdown = target = undefined;
 }
 
 function cancelDragging() {
   target.dispatchEvent(new DragEvent('drag-cancel', lastDragEvent));
   target.removeAttribute(':dragging', pseudo);
   target.style.userSelect = userSelectOG;
-  lastDragEvent = userSelectOG = mousedown = target = undefined;
+  lastDragEvent = userSelectOG = pointerdown = target = undefined;
 }
 
-function endDragging(mouseup) {
-  mouseup.preventDefault();
-  target.dispatchEvent(new DragEvent('drag-end', mouseup));
+function endDragging(pointerup) {
+  pointerup.preventDefault();
+  target.dispatchEvent(new DragEvent('drag-end', pointerup));
   target.removeAttribute(':dragging', pseudo);
   target.style.userSelect = userSelectOG;
-  lastDragEvent = userSelectOG = mousedown = target = undefined;
+  lastDragEvent = userSelectOG = pointerdown = target = undefined;
 }
 
 function maybeDragListener(e) {
   if (e.buttons !== 1)
     return;
-  mousedown = e;
+  pointerdown = e;
   target = this;
   userSelectOG = target.style.userSelect;
   target.style.userSelect = 'none';
   target.setAttributeNode(document.createAttribute(':drag-maybe'), pseudo);
 }
 
-function tryToDrag(mousemove) {
-  if (mousedown.defaultPrevented)
+function tryToDrag(pointermove) {
+  if (pointerdown.defaultPrevented)
     return this.cancelDragMaybe();
-  lastDragEvent = DragEvent.tryToMakeDrag(mousedown, mousemove);
+  lastDragEvent = DragEvent.tryToMakeDrag(pointerdown, pointermove);
   if (!lastDragEvent)
     return;
-  mousedown.preventDefault();
-  mousemove.preventDefault();
+  pointerdown.preventDefault();
+  pointermove.preventDefault();
   target.removeAttribute(':drag-maybe', pseudo);
   target.setAttributeNode(document.createAttribute(':dragging'), pseudo);
-  target.dispatchEvent(new DragEvent('drag-start', mousedown));
+  target.dispatchEvent(new DragEvent('drag-start', pointerdown));
   target.dispatchEvent(lastDragEvent);
 }
 
-function mousemoveToDrag(mousemove) {
-  console.log(mousemove)
-  // mousemove.preventDefault();
-  //we are not blocking mousemove events here.. do we want to do that?
-  //mousemove.stopImmediatePropagation();    //i don't think that we should block like this...
-  // target.dispatchEvent(lastDragEvent = new DragEvent('drag', mousemove));
+function pointermoveToDrag(pointermove) {
+  console.log(pointermove)
+  // pointermove.preventDefault();
+  //we are not blocking pointermove events here.. do we want to do that?
+  //pointermove.stopImmediatePropagation();    //i don't think that we should block like this...
+  // target.dispatchEvent(lastDragEvent = new DragEvent('drag', pointermove));
 }
 
 export class DragMaybe extends HTMLElement {
   firstConnectedCallback() {
-    this.addEventListener('mousedown', maybeDragListener, {
+    this.addEventListener('pointerdown', maybeDragListener, {
       preventable: EventListenerOptions.PREVENTABLE_SOFT,
       trustedOnly: true
     });
@@ -114,14 +121,14 @@ export class DragMaybeReaction extends HTMLElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (newValue === null) {
-      window.removeEventListener('mousemove', tryToDrag, true);
-      window.removeEventListener('mouseup', cancelDragMaybe, true);
-      window.removeEventListener('mousedown', cancelDragMaybe, true);
+      window.removeEventListener('pointermove', tryToDrag, true);
+      window.removeEventListener('pointerup', cancelDragMaybe, true);
+      window.removeEventListener('pointerdown', cancelDragMaybe, true);
       window.removeEventListener('blur', cancelDragMaybe, true);
     } else {
       window.addEventListener('mousemove', tryToDrag, true);
-      window.addEventListener('mouseup', cancelDragMaybe, true);
-      window.addEventListener('mousedown', cancelDragMaybe, true);
+      window.addEventListener('pointerup', cancelDragMaybe, true);
+      window.addEventListener('pointerdown', cancelDragMaybe, true);
       window.addEventListener('blur', cancelDragMaybe, true);
     }
   }
@@ -138,14 +145,14 @@ export class DraggingReaction extends HTMLElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (newValue === null) {
-      window.removeEventListener('mousemove', mousemoveToDrag, true);
-      window.removeEventListener('mouseup', endDragging, true);
-      window.removeEventListener('mousedown', cancelDragging, true);
+      window.removeEventListener('pointermove', pointermoveToDrag, true);
+      window.removeEventListener('pointerup', endDragging, true);
+      window.removeEventListener('pointerdown', cancelDragging, true);
       window.removeEventListener('blur', cancelDragging, true);
     } else {
-      window.addEventListener('mousemove', mousemoveToDrag, true);
-      window.addEventListener('mouseup', endDragging, true);
-      window.addEventListener('mousedown', cancelDragging, true);
+      window.addEventListener('pointermove', pointermoveToDrag, true);
+      window.addEventListener('pointerup', endDragging, true);
+      window.addEventListener('pointerdown', cancelDragging, true);
       window.addEventListener('blur', cancelDragging, true);
     }
   }
