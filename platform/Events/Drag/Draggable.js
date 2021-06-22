@@ -76,6 +76,7 @@ function maybeDragListener(e) {
   target = this;
   userSelectOG = target.style.userSelect;
   target.style.userSelect = 'none';
+  document.body.style.touchAction = 'none';
   target.setAttributeNode(document.createAttribute(':drag-maybe'), pseudo);
 }
 
@@ -126,7 +127,7 @@ export class DragMaybeReaction extends HTMLElement {
       window.removeEventListener('pointerdown', cancelDragMaybe, true);
       window.removeEventListener('blur', cancelDragMaybe, true);
     } else {
-      window.addEventListener('mousemove', tryToDrag, true);
+      document.addEventListener('pointermove', tryToDrag, true);
       window.addEventListener('pointerup', cancelDragMaybe, true);
       window.addEventListener('pointerdown', cancelDragMaybe, true);
       window.addEventListener('blur', cancelDragMaybe, true);

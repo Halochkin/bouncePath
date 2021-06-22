@@ -72,7 +72,7 @@ const pseudo = Math.random() + 1;  //this should probably be exportable.
 
 export class SwipeMaybe extends HTMLElement {
   firstConnectedCallback() {
-    this.addEventListener('dragstart', function (e) {
+    this.addEventListener('drag-start', function (e) {
       if (target)
         return;
       dragstart = e;

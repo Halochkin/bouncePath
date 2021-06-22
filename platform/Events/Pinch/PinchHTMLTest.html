@@ -12,7 +12,6 @@
 
 
 <pinch-element id="elem"></pinch-element>
-<!--<button style="float:right" onclick="setTimeout(function(){alert('boo!')}, 2000)">Alert after 2s</button>-->
 
 
 <script src="//cdn.rawgit.com/hammerjs/touchemulator/0.0.2/touch-emulator.js"></script>
@@ -20,9 +19,11 @@
 
 <script type="module">
   import {FirstConnectedCallbackMixin} from "../../FirstConnectedCallbackMixin.js";
-  import {} from "../../CustomElementsMix.js";
 
 
+  import {} from "../../EventTarget.js";
+  import {mix} from "../../MixinMixer.js";
+  import {} from "../../GlobalEventHandlers.js";
   import {PinchMaybe, PinchMaybeReaction, PinchReaction} from "./Pinchable.js"
 
   class customPinchElement extends HTMLElement {
@@ -35,13 +36,11 @@
     static get observedAttributes() {
       return []
     }
-
   }
 
-  customElements.mix("pinch-element",
-    [PinchMaybeReaction, PinchReaction, PinchMaybe, customPinchElement, FirstConnectedCallbackMixin]);
 
-
+  const PinchElement = mix("PinchElement", [PinchMaybeReaction, PinchReaction, PinchMaybe, customPinchElement, FirstConnectedCallbackMixin]);
+  customElements.define("pinch-element", PinchElement);
 </script>
 
 

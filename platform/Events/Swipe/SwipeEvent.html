@@ -1,30 +1,18 @@
-<swipe-element swipe></swipe-element>
+<swipe-element></swipe-element>
+
 <button style="float:right" onclick="setTimeout(function(){alert('boo!')}, 2000)">Alert after 2s</button>
 
 
 <script type="module">
 
+
+  import {SwipeMaybe, swipeMaybeReaction} from "../../Events/Drag/Swipe_based_on_drag.js"
+
+  import {} from "../../EventTarget.js";
+  import {mix} from "../../MixinMixer.js";
+  import {} from "../../GlobalEventHandlers.js";
+  import {DraggingReaction, DragMaybeReaction, DragMaybe} from "../../Events/Drag/Draggable.js";
   import {FirstConnectedCallbackMixin} from "../../FirstConnectedCallbackMixin.js";
-  import {} from "../../CustomElementsMix.js";
-
-  // import {
-  //   mouseDownToSwipeStart,
-  //   mouseDownToSwipeCancel,
-  //   mouseMoveToSwipeMove,
-  //   mouseUpToSwipeStop,
-  //   blurToSwipeCancel,
-  //   selectStart
-  // } from "./Swipe.js"
-
-  import {
-    touchStartToSwipeStart,
-    touchStartToSwipeCancel,
-    touchMoveToSwipeMove,
-    touchEndToSwipeStop,
-    blurToSwipeCancel,
-    selectStart
-  } from "./SwipeTouch.js"
-
 
 
   class customViewPort extends HTMLElement {
@@ -33,9 +21,7 @@
     }
 
 
-
     firstConnectedCallback() {
-      this.attachShadow({mode: "open"});
       this.shadowRoot.innerHTML = `
         <style>
             #frame {
@@ -63,9 +49,11 @@
     }
   }
 
-  customElements.mix("swipe-element",
-    // [customViewPort, mouseDownToSwipeStart, mouseDownToSwipeCancel, mouseMoveToSwipeMove, mouseUpToSwipeStop, blurToSwipeCancel, selectStart, FirstConnectedCallbackMixin])
-    [customViewPort, touchStartToSwipeStart, touchStartToSwipeCancel, touchMoveToSwipeMove, touchEndToSwipeStop, blurToSwipeCancel, selectStart, FirstConnectedCallbackMixin])
+
+  const SwipeElement = mix("SwipeElement",
+    [customViewPort, swipeMaybeReaction, SwipeMaybe, DraggingReaction, DragMaybeReaction, DragMaybe, FirstConnectedCallbackMixin]);
+
+  customElements.define("swipe-element", SwipeElement);
 
 </script>
 
@@ -88,7 +76,7 @@
     // swipeStart = e.x - e.target.offsetLeft;
     swipeStart = e.x - e.target.offsetLeft;
   });
-  window.addEventListener("swipe-stop", e => {
+  window.addEventListener("swipe-end", e => {
     const swipeElement = document.querySelector("swipe-element");
     const viewport = swipeElement.shadowRoot.querySelector("#viewport");
     const frame = swipeElement.shadowRoot.querySelector("#frame");
