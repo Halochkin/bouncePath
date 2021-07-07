@@ -1,0 +1,301 @@
+<head>
+    <event-loop></event-loop>
+</head>
+<body>
+
+<drag-div :target="4">hello</drag-div>
+
+
+</body>
+
+
+<script type="module">
+  import {mix} from "../MixinMixer.js";
+  import {FirstConnectedCallbackMixin} from "../FirstConnectedCallbackMixin.js";
+
+  window.EventListenerOptions = Object.assign(window.EventListenerOptions || {}, {
+    PREVENTABLE_NONE: 0,   // the listener is not blocked by preventDefault, nor does it trigger preventDefault.     //this is the same as passive: true
+    PREVENTABLE_SOFT: 1,   // the listener is blocked by preventDefault, and *may or may not* trigger preventDefault.
+    PREVENTABLE: 2,        // the listener is blocked by preventDefault, and will always call preventDefault when invoked.
+  });
+
+  class DragEvent extends MouseEvent {
+    constructor(type, dict) {
+      super(type, dict);
+    }
+
+    static tryToMakeDrag(pointerdown, pointermove) {
+      const distX = pointermove.x - pointerdown.x;
+      const distY = pointermove.y - pointerdown.y;
+      if ((distY > 4 || distY < -4) || (distX > 4 || distX < -4))
+        return new DragEvent('drag', pointermove);
+    }
+  }
+
+  const pseudo = Math.random() + 1;  //this should probably be exportable.
+  let userSelectOG, touchActionOG, target, pointerdown, lastDragEvent; //global state
+  const eventLoopElement = document.querySelector("event-loop");
+
+
+  /*
+  But the most likely mechanism is that one mixin sets <event type=pointerdown default-prevented> on the pointerdown event
+  that started the maybe scenario of the other gestures, and that all the other mixins that listen for this attribute
+  change on the same old pointerdown <event-element> then are cancelled.
+  */
+
+  function cancelDragMaybe(e) {
+    target.removeAttribute(':drag-maybe', pseudo);
+    cacheEventElement(e, this);
+    userSelectOG = pointerdown = target = undefined;
+  }
+
+  function cancelDragging(e) {
+    target.dispatchEvent(new DragEvent('drag-cancel', lastDragEvent));
+    target.removeAttribute(':dragging', pseudo);
+    target.style.userSelect = userSelectOG;
+    cacheEventElement(e, this);
+    lastDragEvent = userSelectOG = pointerdown = target = undefined;
+  }
+
+  function endDragging(pointerup) {
+    target.dispatchEvent(new DragEvent('drag-end', pointerup));
+    target.removeAttribute(':dragging', pseudo);
+    target.style.userSelect = userSelectOG;
+    document.body.style.touchAction = touchActionOG;
+    cacheEventElement(pointerup, this);  //must call cacheEventElement() BEFORE .preventDefault() to create element and append it to <event-loop>
+    pointerup.preventDefault();
+    lastDragEvent = userSelectOG = pointerdown = target = undefined;
+  }
+
+  function maybeDragListener(e) {
+    if (e.buttons !== 1)
+      return;
+    pointerdown = e;
+    target = this;
+    userSelectOG = target.style.userSelect;
+    touchActionOG = target.style.userSelect;
+    target.style.userSelect = 'none';
+    document.body.style.touchAction = 'none';
+    target.setAttributeNode(document.createAttribute(':drag-maybe'), pseudo);
+    cacheEventElement(pointerdown, target);
+  }
+
+  function tryToDrag(pointermove) {
+    if (!pointerdown) return;
+    if (pointerdown.defaultPrevented)
+      return this.cancelDragMaybe();
+    lastDragEvent = DragEvent.tryToMakeDrag(pointerdown, pointermove);
+    if (!lastDragEvent)
+      return;
+    target.removeAttribute(':drag-maybe', pseudo);
+    cacheEventElement(pointermove, pointermove.target);
+    pointerdown.preventDefault();
+    pointermove.preventDefault();
+    target.setAttributeNode(document.createAttribute(':dragging'), pseudo);
+    target.dispatchEvent(new DragEvent('drag-start', pointerdown));
+    target.dispatchEvent(lastDragEvent);
+  }
+
+  function pointermoveToDrag(pointermove) {
+    console.log(pointermove)
+    // pointermove.preventDefault();
+    //we are not blocking pointermove events here.. do we want to do that?
+    //pointermove.stopImmediatePropagation();    //i don't think that we should block like this...
+    // target.dispatchEvent(lastDragEvent = new DragEvent('drag', pointermove));
+    cacheEventElement(pointermove, pointermove.target);
+  }
+
+
+  function cacheEventElement(e, target) {
+    if (!target)
+      return;
+    /* If the event is composed:true, then the event should be cancelled.
+      Composed: false, then the  event doesn't need to
+      be cancelled if the element is taken out of the DOM. */
+    // if (e.composed) return; //todo: fix composed
+    let eventElement = new EventElement();
+    let currentEvent = document.querySelector("event-element[\\:now]");
+    if (currentEvent)
+      currentEvent.removeAttribute(":now");
+    eventElement.setAttributeNode(document.createAttribute(":now"));
+    eventElement.attributes = {target: target, type: e.type, prevented: e.defaultPrevented};
+
+    if (target.attributes && target.attributes.length) {
+      if (Array.from(target.attributes).find(
+        attr => attr?.nodeName.includes("maybe") || attr?.nodeName.includes("dragging")))
+        eventElement.setAttributeNode(document.createAttribute(Array.from(target.attributes).find(
+          attr => attr?.nodeName.includes("maybe") || attr?.nodeName.includes("dragging")).nodeName));
+    }
+    eventLoopElement.appendChild(eventElement);
+  }
+
+  function dispatchEventImpl(ctx, e, options) {
+    dispatchEventOG.call(ctx, e, options);
+  }
+
+  const dispatchEventOG = EventTarget.prototype.dispatchEvent;
+  // Always the dispatchEvent () makes an <event> element and adds it at the end of the <event-loop>.
+  // It is only the dispatchEvent function that adds and removes the :now attr on the event-element.
+  EventTarget.prototype.dispatchEvent = function (e, options) {
+    cacheEventElement(e, this);
+    dispatchEventImpl(this, e, options);
+  }
+
+
+  function preventDefaultImpl(target) {
+    preventDefaultOG.call(target);
+  }
+
+  const preventDefaultOG = Event.prototype.preventDefault;
+  Event.prototype.preventDefault = function () {
+    preventDefaultImpl(this);
+    const lastEvenElement = Array.from(document.querySelectorAll(`event-element[type=${this.type}]`)).pop();
+    /* Whenever preventDefault () is called on an event, the <event-element :prevent-default> attribute is set. */
+    if (lastEvenElement)
+      lastEvenElement.setAttributeNode(document.createAttribute(":prevent-default"));
+  }
+
+  class EventLoop extends HTMLElement {
+    constructor() {
+      super();
+      const config = {
+        childList: true,
+      };
+
+      const observer = new MutationObserver(this.mutationCallback);
+      observer.observe(this, config);
+    }
+
+    mutationCallback(mutationsList, observer) {
+      for (let mutation of mutationsList) {
+        if (mutation.addedNodes[0]?.tagName === "TIME-OUT") {
+          /* todo: Yeah, but the setTimeout monkey wouldn't call the OG directly. It would call the event-loop newChildAdded to
+                 trigger the loop process. Maybe the timeout had already been processed.*/
+          const newElement = mutation.addedNodes[0];
+          const cb = newElement.callback;
+          const delay = newElement.delay;
+          setTimeoutImpl(null, cb, delay);
+        }
+        /*Sort UI and time-out elements*/
+        else if (!mutation.addedNodes.length)
+          return
+        const timeOutElement = mutation.target.querySelector("time-out");  /* get first timeout and .before() new <event-element> */
+        if (timeOutElement)
+          timeOutElement.before(mutation.addedNodes[0]);
+      }
+    }
+  }
+
+  const targetArray = [];
+
+  function setTimeoutImpl(ctx, cb, ms) {
+    setTimeoutOG.call(ctx, cb, ms);
+  }
+
+  const setTimeoutOG = window.setTimeout;
+
+  // Also. The <time-out>s are always sorted after UI events, when they are after :now, like the real event-loop in the browser does it.
+  window.setTimeout = function (cb, ms) {
+    const to = document.createElement("time-out");
+    to.callback = cb;
+    to.delay = ms;
+    to.setAttribute("timestamp", new Date().getTime() + ms);
+    eventLoopElement.appendChild(to);
+  }
+
+  class TimeoutElement extends HTMLElement {
+    //todo: add some methods here??
+  }
+
+  class EventElement extends HTMLElement {
+
+    set attributes(val) {
+      let {target, type, prevented} = val;
+      let targetId, index = targetArray.indexOf(target);
+      index !== -1 ? targetId = index : (targetArray.push(target), targetId = targetArray.length - 1);
+      this.setAttribute("type", type);
+      if (prevented)
+        this.setAttributeNode(document.createAttribute(":prevent-default"));
+      if (target instanceof DocumentFragment)
+        return this.setAttributeNode(document.createAttribute(":targetShadow-" + targetId));  /* The document and shadowRoots do not have an element. We must therefore mark them as something like :targetShadow-id123 */
+      if (target === document)        /* And the main document is simply :target-document and window is :target-window. */
+        return this.setAttributeNode(document.createAttribute(":target-document"));
+      if (target === window)
+        return this.setAttributeNode(document.createAttribute(":target-window"));
+      this.setAttributeNode(document.createAttribute(":target-" + targetId))
+    }
+  }
+
+  export class DragMaybe extends HTMLElement {
+    firstConnectedCallback() {
+      this.addEventListener('pointerdown', maybeDragListener, {
+        preventable: EventListenerOptions.PREVENTABLE_SOFT,
+        trustedOnly: true
+      });
+    }
+  }
+
+  export class DragMaybeReaction extends HTMLElement {
+    static get observedAttributes() {
+      return [":drag-maybe"];
+    }
+
+    cancelDragMaybe() {
+      this === target && cancelDragMaybe();
+    }
+
+    attributeChangedCallback(name, oldValue, newValue) {
+      if (newValue === null) {
+        document.removeEventListener('pointermove', tryToDrag, true);
+        document.removeEventListener('pointerup', cancelDragMaybe, true);
+        document.removeEventListener('pointerdown', cancelDragMaybe, true);
+        document.removeEventListener('blur', cancelDragMaybe, true);
+        eventLoopElement.querySelector("[\\:drag-maybe]")?.removeAttribute(":drag-maybe");
+      } else {
+        document.addEventListener('pointermove', tryToDrag, true);
+        document.addEventListener('pointerup', cancelDragMaybe, true);
+        document.addEventListener('pointerdown', cancelDragMaybe, true);
+        document.addEventListener('blur', cancelDragMaybe, true);
+      }
+    }
+  }
+
+  export class DraggingReaction extends HTMLElement {
+    static get observedAttributes() {
+      return [":dragging"];
+    }
+
+    requestDragCancel() {
+      target === this && cancelDragging();
+    }
+
+    attributeChangedCallback(name, oldValue, newValue) {
+      if (newValue === null) {
+        document.removeEventListener('pointermove', pointermoveToDrag, true);
+        document.removeEventListener('pointerup', endDragging, true);
+        document.removeEventListener('pointerdown', cancelDragging, true);
+        document.removeEventListener('blur', cancelDragging, true);
+        // eventLoopElement.querySelector("[\\:dragging]")?.removeAttribute(":dragging");
+        Array.from(eventLoopElement.querySelectorAll("[\\:dragging]"))?.map(item => item.removeAttribute(":dragging")); /*remove all :dragging attrtibutes*/
+      } else {
+        document.addEventListener('pointermove', pointermoveToDrag, true);
+        document.addEventListener('pointerup', endDragging, true);
+        document.addEventListener('pointerdown', cancelDragging, true);
+        document.addEventListener('blur', cancelDragging, true);
+      }
+    }
+  }
+
+  const DragDiv = mix("DragDiv", [DraggingReaction, DragMaybeReaction, DragMaybe, FirstConnectedCallbackMixin]);
+  customElements.define("drag-div", DragDiv);
+  customElements.define("event-loop", EventLoop);
+  customElements.define("event-element", EventElement);
+  customElements.define("time-out", TimeoutElement);
+
+  document.addEventListener('drag-start', e => e.target.style.backgroundColor = "orange");
+  document.addEventListener('drag', e => e.target.style.backgroundColor = "green");
+  document.addEventListener('drag-end', e => e.target.style.backgroundColor = "red");
+  document.addEventListener('drag-cancel', e => e.target.style.backgroundColor = "black");
+
+  setTimeout(() => console.log("timeout"), 1000)
+</script>

@@ -79,6 +79,8 @@ export function mix(className, mixins) {
     }
   }
 
+
+
   //5. make the new HTMLElement class
   const MixedElement = class __mixed__ extends HTMLElementShadow {
     constructor() {

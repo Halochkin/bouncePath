@@ -1,0 +1,128 @@
+<a-href>hello world
+    <check-box></check-box>
+</a-href>
+
+<script>
+  class AHref extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({mode: "open"});
+      this.shadowRoot.innerHTML = `
+        <style>
+          div{ color: blue;  }
+        </style>
+        <slot></slot>
+      `;
+      this._slot = this.shadowRoot.children[1];
+      this.addEventListener("click", e => alert("click"));
+    }
+  }
+
+  class CheckBox extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({mode: "open"});
+      this.shadowRoot.innerHTML = `
+        <style>
+          div{
+            border: 1px solid grey;
+            width: 1em;
+            height: 1em;
+          }
+        </style>
+        <div></div>
+`;
+      this._checkBox = this.shadowRoot.children[1];
+      this.addEventListener("click", e => this._checkBox.innerText = this.checked ? "x" : "");
+    }
+  }
+
+  const stopImmediatePropagationOG = Event.prototype.stopImmediatePropagation;
+
+  function onFirstNativeListener(e) {
+    stopImmediatePropagationOG.call(e);
+    const nativeComposedPath = Event.prototype.composedPath.call(e);
+    let innerMostTarget = nativeComposedPath[0];
+    if (innerMostTarget === window || innerMostTarget === document) innerMostTarget = document.children[0];
+    const rootNode = nativeComposedPath[nativeComposedPath.length - 1];
+
+    debugger; // get stopped
+    propagate(e, innerMostTarget, rootNode,)
+    innerMostTarget.dispatchEvent(e, rootNode,);
+  }
+
+  // pass .realCb as replaced callback
+  function addListenerImpl(l) {
+    // l.target[listeners].push(l);
+    addEventListenerOG.call(l.target, l.type, l.realCb, {capture: l.capture, passive: l.passive});
+  }
+
+  const addEventListenerOG = EventTarget.prototype.addEventListener;
+  EventTarget.prototype.addEventListener = function (type, cb, options) {
+    const target = this;
+    let capture, passive = false, once, trustedOnly, preventable;
+    if (options instanceof Object) {
+      capture = options.capture || !!options;
+      once = !!options.once;
+      //passive
+      preventable = +(options instanceof Object && 'preventable' in options && options.preventable);
+      trustedOnly = options instanceof Object && !!options.trustedOnly;
+    }
+    const listener = {target, type, cb, capture, passive, once, preventable, trustedOnly};
+    listener.realCb = onFirstNativeListener.bind(listener); // grab original callback;
+
+    addListenerImpl(listener);
+  }
+
+
+  function bounceSequence(target, endDocumentWindow, targetContext) {
+    let path = [], contexts = targetContext ? targetContext : [];
+
+
+    for (let t = target; t; t = t.parentNode)
+      path.push(t);
+
+    for (let i = 0; i < path.length - 2; i++) {  //-1 => document, -2 => topMost element
+      const slot = path[i].assignedSlot;
+      if (slot)
+        contexts[i + 1] = bounceSequence(slot, path[i + 1].shadowRoot, undefined);
+    }
+
+    let root = path[path.length - 1];
+    if (root === endDocumentWindow)                       //check for document as root.
+      return {path, contexts, target, root};
+    if (root === document) {
+      path.push(root = window);                                      //window is always last.
+      return {path, contexts, target, root};
+    }
+    // if (root === document)
+    //   return {path: [window], contexts: [{path, contexts, target, root}], root: window, target: window};
+    if (!endDocumentWindow || !(root instanceof DocumentFragment) || !root.host)
+      return {path, contexts, target, root};
+    return bounceSequence(root.host, endDocumentWindow, {path, contexts, target, root});
+
+
+  }
+
+
+  // root - innerMost target
+  function propagate(e, innerMostTarget, root, stopped, prevented, onHost) {
+    // replace
+    innerMostTarget instanceof Element && !onHost && (innerMostTarget = innerMostTarget.shadowRoot ? innerMostTarget.shadowRoot : innerMostTarget);
+    // start bounced path
+//todo: context iterator
+
+  }
+
+  EventTarget.prototype.dispatchEvent = function (e, options) {
+    alert("boo")
+    // const root = options instanceof Object && 'root' in options ? options.root : e.composed;  //options root override e.composed.
+    // const {stopped, prevented} = preInitState(e);
+    // propagate(e, this, root, stopped, prevented, !!options?.onHost);
+  };
+
+  customElements.define("a-href", AHref);
+  customElements.define("check-box", CheckBox);
+
+
+</script>

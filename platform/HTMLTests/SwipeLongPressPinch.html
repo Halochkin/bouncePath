@@ -66,12 +66,12 @@
     mouseUpToSwipeStop,
     blurToSwipeCancel,
     selectStart
-  } from "../Events/Swipe/Swipe.js"
+  } from "../Gestures/Swipe/Swipe.js"
 
   import {
     mouseUpToLongPress,
     mouseDownToLongPressStart
-  } from "../Events/LongPress/Longpress.js"
+  } from "../Gestures/LongPress/Longpress.js"
 
   import {
     touchStartToPinchStart,
@@ -80,7 +80,7 @@
     touchMoveToPinchMove,
     touchEndToPinchStop,
     blurToPinchCancel,
-  } from "../Events/Pinch/Pinch.js"
+  } from "../Gestures/Pinch/Pinch.js"
 
   customElements.mix("div-swipe-longpress", [
     FirstConnectedCallbackMixin,

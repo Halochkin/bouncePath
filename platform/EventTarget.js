@@ -46,7 +46,7 @@ function onFirstNativeListener(e) {
   if (innerMostTarget === window || innerMostTarget === document) innerMostTarget = document.children[0];
   //the composed: true/false is broken. We need to find the root from the native composedPath() for focus events.
   propagate(e, innerMostTarget, nativeComposedPath[nativeComposedPath.length - 1], false, false, false);
-  // innerMostTarget.dispatchEvent(e);
+  innerMostTarget.dispatchEvent(e);
 }
 
 function typeCheckListener(listen) {
@@ -95,9 +95,11 @@ function removeListenerImpl(l) {
 
 const addEventListenerOG = EventTarget.prototype.addEventListener;
 EventTarget.prototype.addEventListener = function (type, cb, options) {
+  // cb is function
   if (!typeCheckListener(cb))
     return;
   const capture = options instanceof Object ? options.capture : !!options;
+  //--------------------------------------------------get old listeners (if such has been added)
   if (getListener(this, type, cb, capture))
     return;
   const target = this;
@@ -106,6 +108,7 @@ EventTarget.prototype.addEventListener = function (type, cb, options) {
   const preventable = +(options instanceof Object && 'preventable' in options && options.preventable);
   const trustedOnly = options instanceof Object && !!options.trustedOnly;
   const listener = {target, type, cb, capture, passive, once, preventable, trustedOnly};
+
   listener.realCb = onFirstNativeListener.bind(listener);
   //we don't use the listener object, but we need to bind the nativeEventListener to something to get a unique realCb.
   addListenerImpl(listener);

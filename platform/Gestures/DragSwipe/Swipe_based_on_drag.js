@@ -93,10 +93,10 @@ export class swipeMaybeReaction extends HTMLElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (newValue !== null) {
-      window.addEventListener('dragend', trySwipe, true);
+      window.addEventListener('drag-end', trySwipe, true);
       window.addEventListener('drag-cancel', resetSwipe, true);    //drag-cancel doesn't exist..
     } else {
-      window.removeEventListener('dragend', trySwipe, true);
+      window.removeEventListener('drag-end', trySwipe, true);
       window.removeEventListener('drag-cancel', resetSwipe, true); //drag-cancel doesn't exist..
     }
   }

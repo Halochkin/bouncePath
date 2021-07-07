@@ -1,0 +1,12 @@
+<div id="down">down: </div>
+<div id="move">move: </div>
+
+<script src="../TouchEmulator/TouchEmulator.js"></script>
+<script> TouchEmulator(); </script>
+
+<script>
+  const down = document.querySelector("#down");
+  const move = document.querySelector("#move");
+    window.addEventListener("pointerdown", e=> down.innerText += e.pointerId);
+    window.addEventListener("pointerdown", e=> move.innerText += e.pointerId);
+</script>

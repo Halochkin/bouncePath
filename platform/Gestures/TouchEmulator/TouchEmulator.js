@@ -176,17 +176,17 @@
    * @param mouseEv
    */
   function triggerTouch(eventName, mouseEv) {
-    var touchEvent = new TouchEvent(eventName, mouseEv);
-    // touchEvent.initEvent(eventName, true, true);
+    var touchEvent = document.createEvent('Event');
+    touchEvent.initEvent(eventName, true, true);
 
-    // touchEvent.altKey = mouseEv.altKey;
-    // touchEvent.ctrlKey = mouseEv.ctrlKey;
-    // touchEvent.metaKey = mouseEv.metaKey;
-    // touchEvent.shiftKey = mouseEv.shiftKey;
-    //
-    // touchEvent.touches = getActiveTouches(mouseEv, eventName);
-    // touchEvent.targetTouches = getActiveTouches(mouseEv, eventName);
-    // touchEvent.changedTouches = getChangedTouches(mouseEv, eventName);
+    touchEvent.altKey = mouseEv.altKey;
+    touchEvent.ctrlKey = mouseEv.ctrlKey;
+    touchEvent.metaKey = mouseEv.metaKey;
+    touchEvent.shiftKey = mouseEv.shiftKey;
+
+    touchEvent.touches = getActiveTouches(mouseEv, eventName);
+    touchEvent.targetTouches = getActiveTouches(mouseEv, eventName);
+    touchEvent.changedTouches = getChangedTouches(mouseEv, eventName);
 
     eventTarget.dispatchEvent(touchEvent);
   }

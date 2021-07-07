@@ -81,6 +81,7 @@ function maybeDragListener(e) {
 }
 
 function tryToDrag(pointermove) {
+  if (!pointerdown) return;
   if (pointerdown.defaultPrevented)
     return this.cancelDragMaybe();
   lastDragEvent = DragEvent.tryToMakeDrag(pointerdown, pointermove);
@@ -122,15 +123,15 @@ export class DragMaybeReaction extends HTMLElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (newValue === null) {
-      window.removeEventListener('pointermove', tryToDrag, true);
-      window.removeEventListener('pointerup', cancelDragMaybe, true);
-      window.removeEventListener('pointerdown', cancelDragMaybe, true);
-      window.removeEventListener('blur', cancelDragMaybe, true);
+      document.removeEventListener('pointermove', tryToDrag, true);
+      document.removeEventListener('pointerup', cancelDragMaybe, true);
+      document.removeEventListener('pointerdown', cancelDragMaybe, true);
+      document.removeEventListener('blur', cancelDragMaybe, true);
     } else {
       document.addEventListener('pointermove', tryToDrag, true);
-      window.addEventListener('pointerup', cancelDragMaybe, true);
-      window.addEventListener('pointerdown', cancelDragMaybe, true);
-      window.addEventListener('blur', cancelDragMaybe, true);
+      document.addEventListener('pointerup', cancelDragMaybe, true);
+      document.addEventListener('pointerdown', cancelDragMaybe, true);
+      document.addEventListener('blur', cancelDragMaybe, true);
     }
   }
 }
@@ -146,15 +147,15 @@ export class DraggingReaction extends HTMLElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (newValue === null) {
-      window.removeEventListener('pointermove', pointermoveToDrag, true);
-      window.removeEventListener('pointerup', endDragging, true);
-      window.removeEventListener('pointerdown', cancelDragging, true);
-      window.removeEventListener('blur', cancelDragging, true);
+      document.removeEventListener('pointermove', pointermoveToDrag, true);
+      document.removeEventListener('pointerup', endDragging, true);
+      document.removeEventListener('pointerdown', cancelDragging, true);
+      document.removeEventListener('blur', cancelDragging, true);
     } else {
-      window.addEventListener('pointermove', pointermoveToDrag, true);
-      window.addEventListener('pointerup', endDragging, true);
-      window.addEventListener('pointerdown', cancelDragging, true);
-      window.addEventListener('blur', cancelDragging, true);
+      document.addEventListener('pointermove', pointermoveToDrag, true);
+      document.addEventListener('pointerup', endDragging, true);
+      document.addEventListener('pointerdown', cancelDragging, true);
+      document.addEventListener('blur', cancelDragging, true);
     }
   }
 }
