@@ -1,5 +1,9 @@
 <head>
-    <event-loop></event-loop>
+    <event-loop>
+        <time-out timestamp="123"></time-out>
+        <time-out timestamp="321"></time-out>
+    </event-loop>
+
 </head>
 <body>
 
@@ -12,12 +16,64 @@
 <script type="module">
   import {mix} from "../MixinMixer.js";
   import {FirstConnectedCallbackMixin} from "../FirstConnectedCallbackMixin.js";
+  import {ContextIterator, composedPath, bounceSequence} from "../bubble/BouncedPath.js";
+  import {initEvent, updateEvent} from "../bubble/Event.js";
+
 
   window.EventListenerOptions = Object.assign(window.EventListenerOptions || {}, {
     PREVENTABLE_NONE: 0,   // the listener is not blocked by preventDefault, nor does it trigger preventDefault.     //this is the same as passive: true
     PREVENTABLE_SOFT: 1,   // the listener is blocked by preventDefault, and *may or may not* trigger preventDefault.
     PREVENTABLE: 2,        // the listener is blocked by preventDefault, and will always call preventDefault when invoked.
   });
+
+  class EventListenerRegistry {
+    constructor() {
+      this.map = {};
+      this.listsWithRemoved = [];
+    }
+
+    //adds the event listener function to the registry, if the function is not already added for that target and type.
+    //returns true when this is the first registered entry for this type and target.
+    add(target, type, listener) {
+      const listenersPerNode = this.map[type] || (this.map[type] = new WeakMap());
+      let listeners = listenersPerNode.get(target);
+      if (!listeners)
+        return !!listenersPerNode.set(target, [listener]);
+      if (listeners.indexOf(listener) >= 0)
+        return false;
+      const empty = listeners.every(f => !f);
+      listeners.push(listener);
+      return empty;
+    }
+
+    remove(target, type, listener) {
+      const listeners = this.map[type]?.get(target);
+      if (!listeners)
+        return false;
+      const index = listeners.indexOf(listener);
+      if (index === -1)
+        return false;
+      listeners[index] = undefined;
+      this.listsWithRemoved.push(listeners);
+      return listeners.every(f => !f);
+    }
+
+    get(target, type) {
+      return this.map[type]?.get(target);
+    }
+
+    cleanup() {
+      for (let listeners; listeners = this.listsWithRemoved.pop();) {
+        if (this.listsWithRemoved.indexOf(listeners) >= 0)//a list might be added twice, if so we clean it only the last time.
+          continue;
+        let length = listeners.length;
+        for (let i = 0; i < length; i++) {
+          if (listeners[i] === undefined)
+            length--, listeners.splice(i--, 1);
+        }
+      }
+    }
+  }
 
   class DragEvent extends MouseEvent {
     constructor(type, dict) {
@@ -102,7 +158,7 @@
     //we are not blocking pointermove events here.. do we want to do that?
     //pointermove.stopImmediatePropagation();    //i don't think that we should block like this...
     // target.dispatchEvent(lastDragEvent = new DragEvent('drag', pointermove));
-    cacheEventElement(pointermove, pointermove.target);
+    // cacheEventElement(pointermove, pointermove.target);
   }
 
 
@@ -114,6 +170,7 @@
       be cancelled if the element is taken out of the DOM. */
     // if (e.composed) return; //todo: fix composed
     let eventElement = new EventElement();
+    eventElement.original = e;
     let currentEvent = document.querySelector("event-element[\\:now]");
     if (currentEvent)
       currentEvent.removeAttribute(":now");
@@ -128,6 +185,7 @@
     }
     eventLoopElement.appendChild(eventElement);
   }
+
 
   function dispatchEventImpl(ctx, e, options) {
     dispatchEventOG.call(ctx, e, options);
@@ -148,7 +206,7 @@
 
   const preventDefaultOG = Event.prototype.preventDefault;
   Event.prototype.preventDefault = function () {
-    preventDefaultImpl(this);
+    // preventDefaultImpl(this);
     const lastEvenElement = Array.from(document.querySelectorAll(`event-element[type=${this.type}]`)).pop();
     /* Whenever preventDefault () is called on an event, the <event-element :prevent-default> attribute is set. */
     if (lastEvenElement)
@@ -160,25 +218,60 @@
       super();
       const config = {
         childList: true,
+        // attributes: true
       };
 
       const observer = new MutationObserver(this.mutationCallback);
       observer.observe(this, config);
     }
 
+
     mutationCallback(mutationsList, observer) {
+      const callStack = [];
+
       for (let mutation of mutationsList) {
-        if (mutation.addedNodes[0]?.tagName === "TIME-OUT") {
+        /*if element has been removed but not added*/
+        if (!mutation.addedNodes.length)
+          return;
+
+        const newElement = mutation.addedNodes[0];
+
+        if (newElement?.tagName === "TIME-OUT") {
           /* todo: Yeah, but the setTimeout monkey wouldn't call the OG directly. It would call the event-loop newChildAdded to
                  trigger the loop process. Maybe the timeout had already been processed.*/
-          const newElement = mutation.addedNodes[0];
           const cb = newElement.callback;
           const delay = newElement.delay;
-          setTimeoutImpl(null, cb, delay);
+          callStack.push(newElement)
+          //todo: use another approach?
+          while (callStack.length) {
+            const currentDate = new Date().getTime();
+            const timeoutAttribute = newElement.getAttribute("timestamp");
+            if (currentDate > timeoutAttribute) {
+              callStack.pop();
+              setTimeoutImpl(null, cb, delay);
+            }
+          }
+        } else if (newElement?.tagName === "EVENT-ELEMENT") {
+          const e = newElement.original
+          const targetName = newElement.getAttributeNames().find(attr => attr.startsWith(":target")).split("-")[1];
+          const targetIsNumber = !isNaN(parseInt(targetName));
+          let target;
+          if (targetIsNumber)
+            target = targetArray[targetName];
+          else {
+            if (targetName === "document")
+              target = document;
+            if (targetName === "window")
+              target = window;
+          }
+
+          if (!target)
+            return;
+          /*propagate() <event-element>*/
+          propagate(e, target, window)
         }
+
         /*Sort UI and time-out elements*/
-        else if (!mutation.addedNodes.length)
-          return
         const timeOutElement = mutation.target.querySelector("time-out");  /* get first timeout and .before() new <event-element> */
         if (timeOutElement)
           timeOutElement.before(mutation.addedNodes[0]);
@@ -212,7 +305,7 @@
     set attributes(val) {
       let {target, type, prevented} = val;
       let targetId, index = targetArray.indexOf(target);
-      index !== -1 ? targetId = index : (targetArray.push(target), targetId = targetArray.length - 1);
+      index === -1 ? (targetArray.push(target), targetId = targetArray.length - 1) : targetId = index;
       this.setAttribute("type", type);
       if (prevented)
         this.setAttributeNode(document.createAttribute(":prevent-default"));
@@ -292,10 +385,54 @@
   customElements.define("event-element", EventElement);
   customElements.define("time-out", TimeoutElement);
 
-  document.addEventListener('drag-start', e => e.target.style.backgroundColor = "orange");
-  document.addEventListener('drag', e => e.target.style.backgroundColor = "green");
-  document.addEventListener('drag-end', e => e.target.style.backgroundColor = "red");
-  document.addEventListener('drag-cancel', e => e.target.style.backgroundColor = "black");
 
-  setTimeout(() => console.log("timeout"), 1000)
+  const dragElement = document.querySelector("drag-div");
+
+  dragElement.addEventListener('drag-start', e => dragElement.style.backgroundColor = "orange");
+  dragElement.addEventListener('drag', e => dragElement.style.backgroundColor = "green");
+  dragElement.addEventListener('drag-end', e => dragElement.style.backgroundColor = "red");
+  dragElement.addEventListener('drag-cancel', e => dragElement.style.backgroundColor = "black");
+
+  setTimeout(() => console.log("timeout"), 1000);
+
+
+  // EVENT PROPAGATION
+  const eventStack = [];
+  const listeners = new EventListenerRegistry();
+
+  function propagate(e, innermostTarget, root, composedPathIn) {
+    if (e.eventPhase !== Event.NONE)
+      throw new Error("Cannot dispatch the same Event twice.");
+
+    composedPathIn = composedPathIn || composedPath(innermostTarget, root);
+    if (innermostTarget.shadowRoot)
+      composedPathIn.unshift(innermostTarget = innermostTarget.shadowRoot);
+
+    eventStack.push(e);
+    initEvent(e, composedPathIn);
+    const type = e.type;
+    const topMostContext = bounceSequence(innermostTarget, root);
+    for (let context of ContextIterator(topMostContext)) {
+      updateEvent(e, 'context', context);
+      if (e.defaultPrevented)
+        continue;
+      for (let target of context.path) {
+        const list = listeners.get(target, type);
+        if (list) {
+          updateEvent(e, 'currentTarget', target);
+          for (let fun of list)
+            fun?.call(target, e);
+        }
+      }
+    }
+    updateEvent(e, 'eventPhase', Event.FINISHED);
+    updateEvent(e, 'context', topMostContext);
+    updateEvent(e, 'currentTarget', undefined);
+
+    eventStack.pop() &&
+    !eventStack.length &&
+    listeners.cleanup();
+  }
+
+
 </script>
