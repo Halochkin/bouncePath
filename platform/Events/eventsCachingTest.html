@@ -1,7 +1,6 @@
 <head>
     <event-loop>
-        <time-out timestamp="123"></time-out>
-        <time-out timestamp="321"></time-out>
+
     </event-loop>
 
 </head>
@@ -16,7 +15,7 @@
 <script type="module">
   import {mix} from "../MixinMixer.js";
   import {FirstConnectedCallbackMixin} from "../FirstConnectedCallbackMixin.js";
-  import {ContextIterator, composedPath, bounceSequence} from "../bubble/BouncedPath.js";
+  import {bounceSequence, composedPath, ContextIterator} from "../bubble/BouncedPath.js";
   import {initEvent, updateEvent} from "../bubble/Event.js";
 
 
@@ -174,7 +173,7 @@
     let currentEvent = document.querySelector("event-element[\\:now]");
     if (currentEvent)
       currentEvent.removeAttribute(":now");
-    eventElement.setAttributeNode(document.createAttribute(":now"));
+    eventElement.setAttribute(":now", Date.now());
     eventElement.attributes = {target: target, type: e.type, prevented: e.defaultPrevented};
 
     if (target.attributes && target.attributes.length) {
@@ -225,56 +224,58 @@
       observer.observe(this, config);
     }
 
+    /* takes the elements from the DOM that is after :now.*/
+    static runNextTasks(d) {
+      const waitingElements = Array.from(document.querySelectorAll(`[\\:now] ~ *`));
+      while (waitingElements.length) {
+        for (const waitingElement of waitingElements) {
+
+          if (waitingElement?.tagName === "TIME-OUT") {
+            const cb = waitingElement.callback;
+            const delay = waitingElement.delay;
+            const timeoutAttribute = waitingElement.getAttribute("timestamp");
+            if (Date.now() > timeoutAttribute)
+              setTimeoutImpl(null, cb, delay);
+          }
+
+          if (waitingElement.tagName === "EVENT-ELEMENT") {
+            const e = waitingElement.original;  //todo:
+            const targetName = waitingElement.getAttributeNames().find(attr => attr.startsWith(":target")).split(
+              "-")[1];
+            let target;
+            if (!isNaN(parseInt(targetName))) /*get target id :target-0 is integer*/
+              target = targetArray[targetName];
+            else {
+              if (targetName === "document")
+                target = document;
+              if (targetName === "window")
+                target = window;
+            }
+
+            if (!target)
+              return;
+            /*propagate() <event-element>*/
+            propagate(e, target, window)
+          }
+
+          waitingElements.shift();
+          /*todo: call OGSetTimeout*/
+
+        }
+      }
+    }
+
 
     mutationCallback(mutationsList, observer) {
-      const callStack = [];
-
       for (let mutation of mutationsList) {
         /*if element has been removed but not added*/
         if (!mutation.addedNodes.length)
           return;
-
-        const newElement = mutation.addedNodes[0];
-
-        if (newElement?.tagName === "TIME-OUT") {
-          /* todo: Yeah, but the setTimeout monkey wouldn't call the OG directly. It would call the event-loop newChildAdded to
-                 trigger the loop process. Maybe the timeout had already been processed.*/
-          const cb = newElement.callback;
-          const delay = newElement.delay;
-          callStack.push(newElement)
-          //todo: use another approach?
-          while (callStack.length) {
-            const currentDate = new Date().getTime();
-            const timeoutAttribute = newElement.getAttribute("timestamp");
-            if (currentDate > timeoutAttribute) {
-              callStack.pop();
-              setTimeoutImpl(null, cb, delay);
-            }
-          }
-        } else if (newElement?.tagName === "EVENT-ELEMENT") {
-          const e = newElement.original
-          const targetName = newElement.getAttributeNames().find(attr => attr.startsWith(":target")).split("-")[1];
-          const targetIsNumber = !isNaN(parseInt(targetName));
-          let target;
-          if (targetIsNumber)
-            target = targetArray[targetName];
-          else {
-            if (targetName === "document")
-              target = document;
-            if (targetName === "window")
-              target = window;
-          }
-
-          if (!target)
-            return;
-          /*propagate() <event-element>*/
-          propagate(e, target, window)
-        }
-
         /*Sort UI and time-out elements*/
         const timeOutElement = mutation.target.querySelector("time-out");  /* get first timeout and .before() new <event-element> */
         if (timeOutElement)
           timeOutElement.before(mutation.addedNodes[0]);
+        EventLoop.runNextTasks();
       }
     }
   }
@@ -292,7 +293,7 @@
     const to = document.createElement("time-out");
     to.callback = cb;
     to.delay = ms;
-    to.setAttribute("timestamp", new Date().getTime() + ms);
+    to.setAttribute("timestamp", Date.now() + ms);
     eventLoopElement.appendChild(to);
   }
 
