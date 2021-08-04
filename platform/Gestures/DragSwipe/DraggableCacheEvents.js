@@ -1,3 +1,5 @@
+import {cacheEventElement} from "../../Events/eventLoop.js";
+
 window.EventListenerOptions = Object.assign(window.EventListenerOptions || {}, {
   PREVENTABLE_NONE: 0,   // the listener is not blocked by preventDefault, nor does it trigger preventDefault.     //this is the same as passive: true
   PREVENTABLE_SOFT: 1,   // the listener is blocked by preventDefault, and *may or may not* trigger preventDefault.
@@ -5,7 +7,7 @@ window.EventListenerOptions = Object.assign(window.EventListenerOptions || {}, {
 });
 
 
-class DragEvent extends MouseEvent {
+ class DragEvent extends MouseEvent {
   constructor(type, dict) {
     super(type, dict);
   }
@@ -35,7 +37,7 @@ function cancelDragging() {
 }
 
 function endDragging(pointerup) {
-  pointerup.preventDefault();
+  // pointerup.preventDefault(); //todo: produce an error inside Event.js
   target.dispatchEvent(new DragEvent('drag-end', pointerup));
   target.removeAttribute(':dragging', pseudo);
   target.style.userSelect = userSelectOG;
@@ -61,8 +63,8 @@ function tryToDrag(pointermove) {
   lastDragEvent = DragEvent.tryToMakeDrag(pointerdown, pointermove);
   if (!lastDragEvent)
     return;
-  pointerdown.preventDefault();
-  pointermove.preventDefault();
+  // pointerdown.preventDefault(); //todo: produce an error inside Event.js
+  // pointermove.preventDefault(); //todo: produce an error inside Event.js
   target.removeAttribute(':drag-maybe', pseudo);
   target.setAttributeNode(document.createAttribute(':dragging'), pseudo);
   target.dispatchEvent(new DragEvent('drag-start', pointerdown));
@@ -79,55 +81,8 @@ function pointermoveToDrag(pointermove) {
   cacheEventElement(pointermove);
 }
 
-class EventLoop extends HTMLElement {
-  constructor() {
-    super();
-    const config = {
-      attributes: true,
-      childList: true,
-      subtree: true
-    };
 
-    const dispatchEventOG = EventTarget.prototype.dispatchEvent;
-    EventTarget.prototype.dispatchEvent = function (e, options) {
-      //todo:
-      cacheEventElement(e, this);
-      this.dispatchEvent(e, options);
-    }
-  }
-}
-
-const targetArray = [];
-
-class EventElement extends HTMLElement {
-  constructor() {
-    super();
-  }
-
-  set attributes(val) {
-    let target = val.target;
-    let targetId, index = targetArray.indexOf(target);
-    if (index !== -1)
-      targetId = index;
-    else
-      targetArray.push(target), targetId = targetArray.length - 1;
-    this.setAttribute("type", val.type);
-    this.setAttributeNode(document.createAttribute(":target-" + targetId));
-  }
-}
-
-function cacheEventElement(e, target) {
-  const EventLoopElement = document.querySelector("event-loop");
-  let eventElement = new EventElement();
-  let currentEvent = document.querySelector("event-element[\\:now]");
-  if (currentEvent)
-    currentEvent.removeAttribute(":now")
-  eventElement.setAttributeNode(document.createAttribute(":now"));
-  eventElement.attributes = {target: target, type: e.type};
-  EventLoopElement.appendChild(eventElement);
-}
-
- class DragMaybe extends HTMLElement {
+ export class DragMaybe extends HTMLElement {
   firstConnectedCallback() {
     this.addEventListener('pointerdown', maybeDragListener, {
       preventable: EventListenerOptions.PREVENTABLE_SOFT,
@@ -136,7 +91,7 @@ function cacheEventElement(e, target) {
   }
 }
 
- class DragMaybeReaction extends HTMLElement {
+export class DragMaybeReaction extends HTMLElement {
   static get observedAttributes() {
     return [":drag-maybe"];
   }
@@ -160,7 +115,7 @@ function cacheEventElement(e, target) {
   }
 }
 
- class DraggingReaction extends HTMLElement {
+export class DraggingReaction extends HTMLElement {
   static get observedAttributes() {
     return [":dragging"];
   }
