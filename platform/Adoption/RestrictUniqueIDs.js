@@ -64,10 +64,10 @@ Object.defineProperties(Element.prototype, {
     }
   },
 
-  "cloneNode": {
-    value(element){
-
-      debugger
-    }
-  }
+  // "cloneNode": {
+  //   value(element){
+  //
+  //     debugger
+  //   }
+  // }
 })

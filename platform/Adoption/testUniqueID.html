@@ -19,12 +19,15 @@
     constructor() {
       super();
       this.attachShadow({mode: "open"});
-      this.shadowRoot.innerHTML = `<span id="4"><h2>deepest h1</h2></span>`;
-      const mostNestedWebComp1 = document.querySelector("webcomp-1").shadowRoot.querySelector("h1");
-      const mostNestedWebComp2 = this.shadowRoot.querySelector("h2");
-      mostNestedWebComp2.id = 44; // handle integers!
-      console.log(mostNestedWebComp2.id);
-      console.log(mostNestedWebComp2.getAttribute("id"));
+      this.shadowRoot.innerHTML = `<div><span id="4"><h2 id="3">deepest h2</h2></span></div>`;
+      const innermostWebComp1 = document.querySelector("webcomp-1").shadowRoot.querySelector("h1");
+      const innerMostWebComp2 = this.shadowRoot.querySelector("h2");
+      const outerMostWebComp2 = this.shadowRoot.querySelector("div");
+      // innerMostWebComp2.id = 44; // handle integers!
+      // console.log(innerMostWebComp2.id);
+      // console.log(innerMostWebComp2.getAttribute("id"));
+      let copy = innerMostWebComp2.cloneNode();
+      outerMostWebComp2.appendChild(copy)
 
     }
   }
