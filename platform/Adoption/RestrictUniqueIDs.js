@@ -3,6 +3,7 @@
 */
 
 const getAttributeOG = Element.prototype.getAttribute;
+const cloneNodeOG = Element.prototype.cloneNode;
 
 function produceUniqueID(element) {
   let res = [];
@@ -23,8 +24,9 @@ Object.defineProperties(Element.prototype, {
     /* If you try to get id, and the element is in the document, then a counter is used to produce an id, and then that
        is set and returned.*/
     get: function () {
-      if (!(element.getRootNode({composed: false}) === document))
-        return getAttributeOG.call(this, "id");
+      let definedAttr = getAttributeOG.call(this, "id");
+      if (!(this.getRootNode({composed: false}) === document))
+        return definedAttr;
       let newId = produceUniqueID(this);
       this.setAttributeNode("id", newId);
       return newId;
@@ -35,7 +37,7 @@ Object.defineProperties(Element.prototype, {
       if (typeof newValue === "number") newValue = newValue.toString();
       const isAttributeSet = getAttributeOG.call(this, "id");
       const idList = [];
-      const elementsWithID = this.getRootNode({composed: false}).querySelectorAll('*[id]').map(
+      const elementsWithID = [...this.getRootNode({composed: false}).querySelectorAll('*[id]')].map(
         element => idList.push(getAttributeOG.call(element, "id")));
       if (elementsWithID.includes(newValue))
         return console.error(`Can't set '${newValue}' as id for`, this, ", such id is already exist "); //todo: fix message
@@ -55,10 +57,17 @@ Object.defineProperties(Element.prototype, {
       if (value !== "id")
         return idAttributeValue;
       //handle id attribute
-      if (!(element.getRootNode({composed: false}) === document))
+      if (!(this.getRootNode({composed: false}) === document))
         return getAttributeOG.call(this, "id");
       let newId = produceUniqueID(this);
       return newId;
+    }
+  },
+
+  "cloneNode": {
+    value(element){
+
+      debugger
     }
   }
 })
