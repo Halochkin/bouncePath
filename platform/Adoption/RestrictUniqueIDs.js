@@ -64,10 +64,15 @@ Object.defineProperties(Element.prototype, {
     }
   },
 
-  // "cloneNode": {
-  //   value(element){
-  //
-  //     debugger
-  //   }
-  // }
+  "cloneNode": {
+    value: function (options) {
+      const cloned = cloneNodeOG.call(this, !!options);
+      const childList = cloned.children;
+      /* CloneNode must iterate deep and remove any id attribute. */
+      for (const element of [cloned, ...childList])
+        if (element.hasAttribute("id"))
+          element.removeAttribute("id")
+      return cloned;
+    },
+  }
 })
