@@ -6,7 +6,7 @@ const getAttributeOG = Element.prototype.getAttribute;
 
 function produceUniqueID(element) {
   let res = [];
-  let rootNode = element.getRootNode();
+  let rootNode = element.getRootNode({composed: false});
   let idMinValue = rootNode.childNodes.length;
   const allID = [...rootNode.querySelectorAll('*[id]')].map(
     element => res.push(getAttributeOG.call(element, "id")));
@@ -23,31 +23,30 @@ Object.defineProperties(Element.prototype, {
     /* If you try to get id, and the element is in the document, then a counter is used to produce an id, and then that
        is set and returned.*/
     get: function () {
+      if (!(element.getRootNode({composed: false}) === document))
+        return getAttributeOG.call(this, "id");
       let newId = produceUniqueID(this);
-      return getAttributeOG.call(this, "id");
+      this.setAttributeNode("id", newId);
+      return newId;
     },
     set: function (newValue) {
-      const isAttributeSet = getAttributeOG.call(this, "id");
-      const elementsWithID = this.getRootNode().querySelectorAll('*[id]');
       /* If you try to set id, and the id value is already set, and the id value is unique in the document, then you get
-         a warning and no error is set. [+] */
-      if (isAttributeSet && elementsWithID.length)
-        for (const element of elementsWithID) {
-          let idValue = getAttributeOG.call(element, "id");
-          if (typeof newValue === "number")
-            newValue = newValue.toString();
-          if (idValue === newValue)  /* set non unique id */
-            return console.error(`Can't set '${newValue}' as new value of:`, this, ", such value is already exist ",
-              element); //todo: fix message
-          if (element === this)
-            return getAttributeOG.call(this, "id");
-        }
+          a warning and no error is set. */
+      if (typeof newValue === "number") newValue = newValue.toString();
+      const isAttributeSet = getAttributeOG.call(this, "id");
+      const idList = [];
+      const elementsWithID = this.getRootNode({composed: false}).querySelectorAll('*[id]').map(
+        element => idList.push(getAttributeOG.call(element, "id")));
+      if (elementsWithID.includes(newValue))
+        return console.error(`Can't set '${newValue}' as id for`, this, ", such id is already exist "); //todo: fix message
+      this.setAttribute("id", newValue);
+      console.warn(newValue, " has been set as id of ", this);
+      return newValue;
     },
   },
 
   /* If you try to get id, and the element is in the document, then a counter is used to produce an id, and then that
      is set and returned.
-
      The getAttribute() is monkeypatched with this logic.  */
 
   "getAttribute": {
@@ -55,10 +54,11 @@ Object.defineProperties(Element.prototype, {
       const idAttributeValue = getAttributeOG.call(this, value);
       if (value !== "id")
         return idAttributeValue;
-
       //handle id attribute
-      if (idAttributeValue)
-        return idAttributeValue;
+      if (!(element.getRootNode({composed: false}) === document))
+        return getAttributeOG.call(this, "id");
+      let newId = produceUniqueID(this);
+      return newId;
     }
   }
 })
