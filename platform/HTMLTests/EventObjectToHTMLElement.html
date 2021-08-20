@@ -1,0 +1,87 @@
+<style>upper-element {
+    border: 2px solid orange;
+    display: block;
+}</style>
+
+
+<body></body>
+
+
+<!--<bob-element>bob</bob-element>-->
+<!--<upper-element>upper element</upper-element>-->
+
+
+<script>
+  class UpperElement extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({mode: "open"});
+      this.shadowRoot.innerHTML = `
+       <style>middle-element{ border: 2px solid blue; display: block;}</style>
+       <slot></slot>
+       <middle-element>#middle element</middle-element>`;
+    }
+  }
+
+  class MiddleElement extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({mode: "open"});
+      this.shadowRoot.innerHTML = `
+       <style>span{ border: 2px solid red; display: block;}</style>
+       <slot></slot>
+       <span id="a">#a</span> <span id="b">#b</span>`;
+    }
+  }
+
+  customElements.define("upper-element", UpperElement);
+  customElements.define("middle-element", MiddleElement);
+</script>
+
+
+<script>
+  const el = document.createElement("max");
+
+  const el2 = document.createElement("div");
+  el2.innerText = "hello world"
+  document.body.appendChild(el2);
+
+
+  let o = {a: 1, b: 2};
+  let tagName = el.tagName.toLowerCase();
+  let str = "<" + tagName + " ";
+
+  el2.addEventListener("click", e => objectToAttribute(e))
+
+  function objectToAttribute(e) {
+    let obj = e;
+    const res = [];
+    while (obj !== Event.prototype) {
+      for (let prop of Object.getOwnPropertyNames(obj))
+        !(e[prop] instanceof Function) && res.push(prop);
+      obj = Object.getPrototypeOf(obj);
+    }
+
+
+    for (const propName of res)
+      str += propName + "='" + e[propName] + "' ";
+
+    str += ">hello world</" + tagName + ">"
+
+    const proxy = new Proxy(el, {
+      get(obj, key) {
+        for (const propName of res)
+          str += propName + "='" + e[propName] + "' ";
+        Reflect.set(obj, key, str + "></" + tagName + ">");
+      }
+    });
+
+
+    el.outerHTML;
+
+    document.body.appendChild(el);
+
+  }
+
+
+</script>

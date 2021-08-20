@@ -1,0 +1,31 @@
+<head>
+    <script src="DeprecateAdoption.js"></script>
+</head>
+
+<webcomp-1>hello </webcomp-1>
+<webcomp-2> adoption</webcomp-2>
+
+<script>
+  class webComp1 extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({mode: "open"});
+      this.shadowRoot.innerHTML = `<h1 id="1"></h1>`;
+    }
+  }
+
+  class webComp2 extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({mode: "open"});
+      this.shadowRoot.innerHTML = `<span><h2 id="2">deepest h1</h2></span>`;
+      const mostNestedWebComp1 = document.querySelector("webcomp-1").shadowRoot.querySelector("h1");
+      const mostNestedWebComp2 = document.querySelector("webcomp-2").shadowRoot.querySelector("h2");
+      mostNestedWebComp1.appendChild(mostNestedWebComp2);
+      mostNestedWebComp1.appendChild(mostNestedWebComp2);
+    }
+  }
+
+  customElements.define("webcomp-1", webComp1);
+  customElements.define("webcomp-2", webComp2);
+</script>

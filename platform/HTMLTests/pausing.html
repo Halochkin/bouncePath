@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en" id="1">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        my-ahref {
+            height: 100px;
+            width: 100px;
+            background-color: red;
+            display: block;
+        }
+
+        my-h1 {
+            height: 80px;
+            width: 80px;
+            background-color: blue;
+            display: block;
+        }
+    </style>
+</head>
+<body id="2">
+
+<div id="3">
+    <my-h1 id="5">my h1</my-h1>
+    <my-ahref id="4">my-ahref</my-ahref>
+
+</div>
+
+<script>
+  /*
+  Rule 1. Web components are fully reactive. The code inside should hold No/zero state. Except state driven by attributes
+  (such as shorthand properties and listeners that follow attributes on/off).
+
+  Rule 2. From rule 1 follows that from tagName, attributes, and childNodes, on the host node, web components should
+  always recreate/resume identically. Reactive 100%. This applies recursively, thus if a web comp is reactive, but uses
+  another web comp that is not reactive in its shadowDom, then it is not reactive. A recursive chain of web comps is only
+  as reactive as it's least reactive link.
+
+  Rule 3. When rule 2 is 100%, then the web comp can both be frozen and resumed. 100% reactive means 100% resumable.
+
+  Rule 4. If a web comp is 100% resumable, then it is also 100% technically reusable. The API (attributes/childnode/methods)
+  might be very bad and non-reusable, but there is nothing technically missing to reuse it. Thus, 100% reactive => 100%
+  resumable => 100% technically reusable.
+
+  Rule 4: No nodes can be added to the shadowDom of a web component that are not created during a) constructor or b)
+  attributeChangedCallback. Such nodes would be non-resumable. This means no node adoption, a.o. The only way is to add
+  nodes as lightDom childnodes of the host node.
+
+  Rule 5. Accumulation or reduction of shadow nodes is not allowed. The shadowDom tree should look the same for a set of
+  attributes regardless of previous changes.
+
+  Rule 6. to make the inner nodes searcheable, all nodes should be either given an id or identified as tagName:nth(x) (edited)
+
+  Rule 7. The format of a path is a space separated list. Whenever we step into a shadowRoot, we add an extra space. Each
+  item in the path is preferably identified by id, and if the element doesn't have an id one will be generated for it in
+  the main document. Inside shadowDom, if no id is given, a search using tagName and if not the first, the :nth(123) specifier, is used.
+*/
+
+  class myAhref extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({mode: "open"});
+      this.shadowRoot.innerHTML = `<slot id="1s"></slot>`;
+    }
+  }
+
+  class myH1 extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({mode: "open"});
+      this.shadowRoot.innerHTML = `<span><h1 id="2s">deepest h1</h1></span>`;
+    }
+  }
+
+  customElements.define("my-ahref", myAhref);
+  customElements.define("my-h1", myH1);
+
+
+  const deepestH1Target = document.querySelector("my-h1").shadowRoot.querySelector("h1");
+  const AhrefTargetShadow = document.querySelector("my-ahref").shadowRoot;
+
+
+  const deepestH1TargetClone = deepestH1Target.cloneNode();
+
+
+  console.table([deepestH1TargetClone.attributes, deepestH1Target.attributes])
+
+  console.log(deepestH1Target, deepestH1TargetClone)
+
+
+  deepestH1Target.addEventListener('click', e => addListeners());
+
+
+  let mouseDownActivated = false;
+  let onceSpoiled = false;
+
+  let initialBouncedPathString, initialPathString;
+  let spoiledBouncedPathString, spoiledPathString;
+
+  const htmlString = `<div>hello<span> adopted</span></div>`
+
+
+  const appendOG = Element.append;
+  const prependOG = Element.prepend;
+
+  Object.defineProperty(Element.prototype, "append", {
+    /* Checks if the root element already has a root document or document fragment can be used */
+    value: function (element) {
+
+
+
+      // get root  document.getRootNode
+      // if true we console warn
+      // if it is false then it can be appeded
+      // check left element root and right element root then compare that roots and check instance of that roots /
+      debugger;
+    }
+  })
+
+
+  function composedPathToString(e, webcomp) {
+    /*
+    top down path, not the bottom up
+    The & points to the main document. The >0 points to web comp which is first in the list.
+    The event can produce two paths: composedPath and bouncePath. And string versions of both.
+    We have the bounce path, and we need a function that can take the bounce path and convert it into composedPath
+    */
+
+    // const bouncedPath = bounceSequence(e.target, window);
+    // const bouncedPathString = toString(bouncedPath, webcomp);
+
+
+    const path = e.composedPath();
+    // [h1, span, myH1#shadow, myH1, slot, myAHr3f#shadow, myAHref, div, body, html]
+    const pathString = toString(path);
+
+    debugger
+    return [bouncedPathString, pathString];
+  }
+
+
+  function addListeners() {
+
+
+    AhrefTargetShadow.appendChild(deepestH1Target);
+
+
+    debugger;
+
+    deepestH1Target.addEventListener("mousedown", function (e) {
+      [initialBouncedPathString, initialPathString] = composedPathToString(e, this)
+      mouseDownActivated = true;
+    }, true);
+    deepestH1Target.addEventListener("mousemove", function (e) {
+      if (!mouseDownActivated || onceSpoiled) return
+      const innerMostTarget = this.shadowRoot.firstElementChild;
+      const randomElement = this.children[(Math.floor(Math.random() * 2))];
+      randomElement.before(innerMostTarget);
+      onceSpoiled = true;
+    }, true);
+  }
+
+
+  deepestH1Target.addEventListener("mouseup", function (e) {
+    if (!mouseDownActivated || !initialBouncedPathString.length || !initialPathString.length) return
+
+    [spoiledBouncedPathString, spoiledPathString] = composedPathToString(e, this);
+
+
+    console.log("Path: ", initialPathString, "  :  ", spoiledPathString);
+    console.log("bouncedPath: ", initialBouncedPathString, "  :  ", spoiledBouncedPathString);
+
+  }, true);
+
+
+  function bounceSequence(target, endDocumentWindowTrueOrFalse, targetContext) {
+    const path = [], contextChildren = targetContext ? [targetContext] : [];
+    for (let t = target; t; t = t.parentNode)
+      path.push(t);
+    for (let i = 0; i < path.length - 2; i++) {  //-1 => document, -2 => topMost element
+      const slot = path[i].assignedSlot;
+      if (slot)
+        contextChildren[i + 1] = bounceSequence(slot, path[i + 1].shadowRoot, undefined);
+    }
+    let root = path[path.length - 1];
+    if (root === endDocumentWindowTrueOrFalse)                       //check for document as root.
+      return {path, contextChildren, target, root};
+    if (root === document) {
+      path.push(root = window);                                      //window is always last.
+      return {path, contextChildren, target, root};
+    }
+    // if (root === document)
+    //   return {path: [window], contextChildren: [{path, contextChildren, target, root}], root: window, target: window};
+    if (!endDocumentWindowTrueOrFalse || !(root instanceof DocumentFragment) || !root.host)
+      return {path, contextChildren, target, root};
+    return bounceSequence(root.host, endDocumentWindowTrueOrFalse, {path, contextChildren, target, root});
+  }
+
+  function toString(path) {
+
+    let res = path.filter(item => item instanceof DocumentFragment || item.tagName)
+      .map(item => {
+        let tagName = item.tagName;
+        if (item instanceof DocumentFragment)
+          tagName = path[path.indexOf(item) + 1].constructor.name + "#shadow" // get nearest item to define name of shadow root
+        return tagName;
+      }).join(',');
+    return res;
+  }
+
+
+</script>
+
+
+</body>
+</html>
