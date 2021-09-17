@@ -1,6 +1,6 @@
 # WhatIs: Event Loop Element
 
-'<event-loop> 'is the html version of the browser event loop.
+`<event-loop>`is the html version of the browser event loop.
 
 The idea behind event-loop is very simple. There is an infinite loop in which the JavaScript engine waits for tasks, 
 executes them, and waits again for new ones to appear.
