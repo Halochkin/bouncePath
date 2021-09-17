@@ -13,7 +13,7 @@
 //         It is my opinion that it might be better to always run capture before bubble, also at_target, but
 //         the 'old way' is chosen because I guess that this will cause the least disturbances in existing web apps.
 
-import {bounceSequence, composedPath, ContextIterator, PathIterator} from "./BouncedPath.js";
+import {bounceSequence, composedPath, ContextIterator, PathIterator} from "../BouncedPath.js";
 import {
   cleanupEvent,
   composedPathOG,

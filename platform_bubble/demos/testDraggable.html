@@ -16,7 +16,7 @@
 
   import {DraggingReaction, DragMaybeReaction, DragMaybe} from "../Draggable.js";
   import {SwipeMaybe, swipeMaybeReaction} from "../mixins/Swipe_based_on_drag.js";
-  import {FirstConnectedCallbackMixin} from "../FirstConnectedCallbackMixin.js";
+  import {FirstConnectedCallbackMixin} from "../../platform/callbacks/firstConnectedCallbackMixin/FirstConnectedCallbackMixin.js";
   const DragDiv = mix("DragDiv", [swipeMaybeReaction, SwipeMaybe, DraggingReaction, DragMaybeReaction, DragMaybe, FirstConnectedCallbackMixin]);
   customElements.define("drag-div", DragDiv);
 

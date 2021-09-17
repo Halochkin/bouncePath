@@ -1,5 +1,5 @@
-import {contextForElement, SubsequentSiblingContexts} from "./BouncedPath.js";
-import {findNativeDefaultAction} from "./getNativeDefaultAction.js";
+import {contextForElement, SubsequentSiblingContexts} from "../BouncedPath.js";
+import {findNativeDefaultAction} from "../getNativeDefaultAction.js";
 
 let cpog = Event.prototype.composedPath;
 export const composedPathOG = Event.prototype.composedPath;

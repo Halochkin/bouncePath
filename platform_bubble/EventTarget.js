@@ -38,9 +38,9 @@
 //question #y: the path is calculated at the outset of each dynamic inside the different documents? That kinda feels appropriate...
 //         why not? why freeze the inside of the document?
 
-import {bounceSequence, ContextIterator, composedPath} from "./BouncedPath.js";
+import {bounceSequence, ContextIterator, composedPath} from "../platform/EventLoopElement/BouncedPath.js";
 import {composedPathOG, initEvent, stopImmediatePropagationOG, updateEvent} from "./Event.js";
-import {EventListenerRegistry} from "./EventListenerRegistry.js";
+import {EventListenerRegistry} from "../platform/EventLoopElement/EventListenerRegistry.js";
 
 // //todo we need to add a check for native type event listeners..
 // // Or, we could just add native event listener for all types of events, even though we don't need them.

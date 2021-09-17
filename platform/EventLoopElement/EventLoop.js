@@ -49,9 +49,9 @@
 //timeout[\\:on]
 
 import {bounceSequence, calculateRoot, composedPath, ContextIterator} from "./BouncedPath.js";
-import {initEvent, updateEvent} from "./Event.js";
+import {initEvent, updateEvent} from "../../platform_bubble/Event.js";
 import {EventListenerRegistry} from "./EventListenerRegistry.js";
-import {FirstConnectedCallbackMixin} from "./FirstConnectedCallbackMixin.js"
+import {FirstConnectedCallbackMixin} from "../callbacks/firstConnectedCallbackMixin/FirstConnectedCallbackMixin.js"
 
 
 const listeners = new EventListenerRegistry();
@@ -140,14 +140,15 @@ class EventLoop extends FirstConnectedCallbackMixin {
       if (this.active || !mr[0].addedNodes.length)
         return;
       this.active = true;
-      // if (this.hasAttribute(':macro'))
-      //   setTimeoutOG(() => this.findNextTask());
-      // else
       this.findNextTask();
     });
     mo.observe(this, {childList: true});
-    //todo throw error if there are two event-loop elements in the DOM at the same time?
-    //todo throw error if this element is not either a direct child of either head or body element?
+    const eventLoopElement = document.querySelectorAll("event-loop");
+    if (eventLoopElement.length > 1)
+      throw new Error("There are two event-loop elements in the DOM at the same time");
+    const parentElementTagNAme = eventLoopElement[0].parentNode.tagName;
+    if (parentElementTagNAme !== "HEAD" && parentElementTagNAme !== "BODY")
+      throw new Error("event-loop element is not either a direct child of either head or body element");
   }
 
 
@@ -195,16 +196,16 @@ class EventLoop extends FirstConnectedCallbackMixin {
 
   findNextTask() {
     const eventLoop = document.querySelector("event-loop");
-    const waitingEvent = document.querySelector('event-loop > event[\\:on]:nth-last-child(1)');
+    const waitingEvent = document.querySelector('event-loop > event:not([\\:started]');
     if (waitingEvent)
       this.runTask(waitingEvent);
     let nonResolvedTask = [...document.querySelectorAll('task:not([\\:started]')].filter(task =>
       !task.hasAttribute(":started") && !task.children.length ||
-      !task.hasAttribute(":res") && !![...task.children].filter(
-      c => !c.hasAttribute(":res") &&  c.getAttribute(":start") > eventLoop.getAttribute(
+      !![...task?.children].filter(
+      c => !c.hasAttribute(":started") && c.getAttribute(":start") < eventLoop.getAttribute(
         ":now")).length).pop();
     if (!nonResolvedTask)
-       return this.active = false;
+      return this.active = false;
     const timeToWait = (parseInt(nonResolvedTask.getAttribute(':start')) || 0) - new Date().getTime();
     if (timeToWait <= 0) {
       this.runTask(nonResolvedTask);
@@ -212,35 +213,31 @@ class EventLoop extends FirstConnectedCallbackMixin {
       this.timer = setTimeoutOG(() => this.findNextTask(), timeToWait);
       this.active = false;
     }
-    setTimeoutOG(this.findNextTask.bind(this));
-  }
+   }
 
   runTask(unresolvedTask) {
     this.active = true;
     if (this.timer)
       clearTimeout(this.timer);
     this.timer = 0;
-    if (!unresolvedTask)
-      return this.active = false;
     if (unresolvedTask?.tagName === "EVENT")
       propagateEvent(unresolvedTask);
     else {
-        unresolvedTask.setAttribute(":started", Date.now());
-        let res = unresolvedTask.children?.length ? this.interpretTask(unresolvedTask) : runTimer(unresolvedTask);
-        //todo: Should I replace Promise.then() to await ??
-        typeof res?.then === 'function' ? res.then(data => {
-          this.finishTask(unresolvedTask, data)
-        }) : this.finishTask(unresolvedTask, res);
-        let isAsync = !unresolvedTask.getAttribute(":res");
-        let startedTimestamp = unresolvedTask.getAttribute(":started");
-        // if it has :started, but no :res, then it is :async-started.
-        if (isAsync && startedTimestamp) {
-          unresolvedTask.removeAttribute(":started");
-          unresolvedTask.setAttribute(":async-started", startedTimestamp)
-        }
-        // if it has :res, then it is :finished :async-finished.  //todo: problem with promise I think. Recursive overwrite 'unresolvedTask'
-        if (isAsync)
-          unresolvedTask.setAttribute(":async-finished", Date.now()); //todo: Date.now() ??
+      unresolvedTask.setAttribute(":started", Date.now());
+      let res = unresolvedTask.children?.length ? this.interpretTask(unresolvedTask) : runTimer(unresolvedTask);
+      typeof res?.then === 'function' ? res.then(data => {
+        this.finishTask(unresolvedTask, data)
+      }) : this.finishTask(unresolvedTask, res);
+      let isAsync = !unresolvedTask.getAttribute(":res");
+      let startedTimestamp = unresolvedTask.getAttribute(":started");
+      // if it has :started, but no :res, then it is :async-started.
+      if (isAsync && startedTimestamp) {
+        // unresolvedTask.removeAttribute(":started");
+        unresolvedTask.setAttribute(":async-started", startedTimestamp)
+      }
+      // if it has :res, then it is :finished :async-finished.  //todo: problem with promise I think. Recursive overwrite 'unresolvedTask'
+      if (isAsync)
+        unresolvedTask.setAttribute(":async-finished", Date.now()); //todo: Date.now() ??
     }
   }
 }
@@ -259,7 +256,6 @@ function convertElementToEvent(el) {
 function makeEventElement(e, root) {
   const el = document.createElement('event');
   el.original = e;
-  el.setAttributeNode(document.createAttribute(':on'));
   el.setAttribute(':type', e.type);
   el.setAttribute(':time-stamp', e.timeStamp);
   el.setAttribute(':target', e.target?.uid || this.uid); //todo: add new +
@@ -273,7 +269,7 @@ function makeEventElement(e, root) {
 
 function makeTaskElement(cb, ms = 0) {   //todo: +1
   const el = document.createElement('task');      //todo: +1
-   el.setAttribute(":created", Date.now());    //todo: step 1
+  el.setAttribute(":created", Date.now());    //todo: step 1
   el.setAttribute(":delay", ms);
   el.setAttribute(":start", Date.now() + ms);  //todo: +1
   const name = cb.name;

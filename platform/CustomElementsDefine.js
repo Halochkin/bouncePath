@@ -1,5 +1,5 @@
-import {SlottableCallbackElementMixin} from "./SlottablesCallbackElement.js";
-import {StyleCallbackElementMixin} from "./StyleCallbackElement.js";
+import {SlottableCallbackElementMixin} from "./callbacks/SlottablesCallbackElement.js";
+import {StyleCallbackElementMixin} from "./callbacks/StyleCallbackElement.js";
 
 function inject(original, mixin, requiredProperty) {
   //first, find the highestmost prototype needing the mixin
