@@ -11,6 +11,9 @@ The general algorithm:
    * Execute them, starting with the oldest one.
 2. Do nothing until there is a new task and then go to step 1
 
+The <event-loop> is primarily an "event queue". But, since the <event-loop> *writes* all events into the DOM. Explicitly.
+If the <event> and <task> elements are not deleted from the DOM, then the content of the <event-loop> will also function
+as an "event log", ie. killing two birds with one stone.
 ## What is <task>
 
 Mdn says that 
