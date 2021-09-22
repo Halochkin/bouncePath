@@ -28,13 +28,16 @@
   const h1 = document.querySelector("h1");
 
   function logEventLoop(target, e) {
-    // target.uid = target.getAttribute(":uid");
-    //  const rootNode =  target.getRootNode({composed: false});
-    //  rootNode && (rootNode.uid = rootNode.body?.getAttribute(":uid"));
-    //  target.dispatchEvent(e, rootNode);
-    // const lastEventElement = eventLoopElement.firstChild;
-    // console.log(lastEventElement);
+    target.uid = target.getAttribute(":uid");
+    const rootNode = target.getRootNode({composed: false});
+    rootNode && (rootNode.uid = rootNode.body?.getAttribute(":uid"));
+    target.dispatchEvent(e, rootNode);
   }
+
+  // h1.addEventListener("mousedown", function (e) {
+  //   logEventLoop(this, e);
+  // });
+
 
   function doSomething(txt) {
     return console.log(txt, new Date().getSeconds());
@@ -56,34 +59,27 @@
     return args.reduce((sum, value) => sum + value);
   }
 
-   function doFetch(args= [8,4]) {
-    return new Promise((resolve, reject) => {
+  function doFetch(args = [8, 4]) {
+     return  new Promise((resolve, reject) => {
       let res = args.reduce((sum, value) => sum / value);
       resolve(res)
     });
   }
 
 
-  h1.addEventListener("mousedown", function (e) {
-    function doSomething1(txt) {
-      return console.log(txt, new Date().getSeconds());
-    }
+  function doAlert() {
+    alert();
+  }
 
-    // console.log("initial time", new Date().getSeconds());
-    // setTimeout((txt)=> console.log(txt, new Date().getSeconds()), 3000, "call timeout1 3s");
-    // setTimeout(function(){console.log("hello", new Date().getSeconds())}, 4000, "call timeout1.1 3s");
-    setTimeout(doFetch, 2000);
-    // setTimeout(doSomething, 3000, true);
-    // setTimeout(doSomething, 4000, "hello world");
-    // setTimeout(doSomething1, 5000, "call timeout3 5s");
-  });
 
-  // h1.addEventListener("mousemove", function (e) {
-  //   logEventLoop(this, e);
+  // h1.addEventListener("mousedown", function (e) {
+  //   setTimeout(doAlert, 2000);
   // });
 
-  // h1.addEventListener("mouseup", function (e) {
-  //   logEventLoop(this, e);
+  // h1.addEventListener("mousedown", function (e) {
+  //   e.uid = this.getAttribute(":uid");
+  //   e.cb = doAlert.name;
+  //   h1.dispatchEvent(e)
   // });
 
   // h1.addEventListener("click", function (e) {

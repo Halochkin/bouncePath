@@ -43,10 +43,6 @@
 //question #y: the path is calculated at the outset of each dynamic inside the different documents? That kinda feels appropriate...
 //         why not? why freeze the inside of the document?
 
-//:on attribute on the event objects, and then remove the :on when the propagation is finished
-//event[\\:on]:last
-//event[\\:on='going']
-//timeout[\\:on]
 
 import {bounceSequence, calculateRoot, composedPath, ContextIterator} from "./BouncedPath.js";
 import {initEvent, updateEvent} from "../../platform_bubble/Event.js";
@@ -80,14 +76,12 @@ function propagateEvent(el) {
   let root = el.getAttribute(':root');
   if (root === 'true') root === true;
   else if (root === 'false') root === false;
-  else if (root) root === document.querySelector(`[\\:uid=${root}]`);
-  //todo deep querySelector? //todo patch the querySelector(..) to enable deep queries for uids?
+  else if (root) root === document.querySelector(`[\\:uid="${root}"]`);
   root = calculateRoot(this, root, e);
   let innermostTarget = this;
   const composedPathIn = composedPath(this, root);
   if (innermostTarget.shadowRoot)
     composedPathIn.unshift(innermostTarget = innermostTarget.shadowRoot);
-
   eventStack.push(e);
   initEvent(e, composedPathIn);
   const type = e.type;
@@ -115,7 +109,7 @@ function propagateEvent(el) {
 }
 
 
-function runTimer(el) {
+function runCallback(el) {
   let cb = el.cb || window[el.getAttribute(":cb")] //todo add new
   if (!cb) return
   let res = cb.call(el);
@@ -133,6 +127,15 @@ class EventLoop extends FirstConnectedCallbackMixin {
     });
   }
 
+  connectedCallback() {
+    const eventLoopElement = document.querySelectorAll("event-loop");
+    if (eventLoopElement.length > 1)
+      throw new Error("There are two event-loop elements in the DOM at the same time");
+    const parentElementTagNAme = eventLoopElement[0].parentNode.tagName;
+    if (parentElementTagNAme !== "HEAD" && parentElementTagNAme !== "BODY")
+      throw new Error("event-loop element is not either a direct child of either head or body element");
+  }
+
   firstConnectedCallback() {
     this.active = false;
     this.timer = 0;
@@ -143,16 +146,11 @@ class EventLoop extends FirstConnectedCallbackMixin {
       this.findNextTask();
     });
     mo.observe(this, {childList: true});
-    const eventLoopElement = document.querySelectorAll("event-loop");
-    if (eventLoopElement.length > 1)
-      throw new Error("There are two event-loop elements in the DOM at the same time");
-    const parentElementTagNAme = eventLoopElement[0].parentNode.tagName;
-    if (parentElementTagNAme !== "HEAD" && parentElementTagNAme !== "BODY")
-      throw new Error("event-loop element is not either a direct child of either head or body element");
+
   }
 
 
-  convertArguments(timeoutElement, data) {
+  convertArguments(timeoutElement) {
     let args = [...timeoutElement.children].map(child => {
       let textContent = child.textContent;
       let dataType = child.tagName;
@@ -172,11 +170,14 @@ class EventLoop extends FirstConnectedCallbackMixin {
         return JSON.parse(textContent);
       if (dataType === 'FLOAT')
         return Number.parseFloat(textContent);
+      if (dataType === 'undefined')
+        console.error("undefined result at ", timeoutElement, "check ", timeoutElement.firstElementChild.getAttribute(":cb"), "() returned value")
     });
     return args;
   }
 
   interpretTask(timeoutElement) {
+    super.connectedCallback();
     let cb;
     if (timeoutElement.getAttribute(":cb"))
       cb = window[timeoutElement.getAttribute(":cb")];
@@ -189,21 +190,24 @@ class EventLoop extends FirstConnectedCallbackMixin {
   }
 
   finishTask(currentTask, data) {
-    currentTask.setAttribute(":res", data);  //todo:   we have to set it inside interpretTask function to avoid infinitive loop
-    currentTask.setAttribute(":finished", Date.now());                            //todo: step 2
+    if (!data)
+      currentTask.setAttribute(":res-type", undefined);
+    currentTask.setAttribute(":res", data);
+    currentTask.setAttribute(":finished", Date.now());
     return this.findNextTask();
   }
 
   findNextTask() {
     const eventLoop = document.querySelector("event-loop");
     const waitingEvent = document.querySelector('event-loop > event:not([\\:started]');
-    if (waitingEvent)
+    if (waitingEvent) {
       this.runTask(waitingEvent);
+    }
     let nonResolvedTask = [...document.querySelectorAll('task:not([\\:started]')].filter(task =>
       !task.hasAttribute(":started") && !task.children.length ||
       !![...task?.children].filter(
-      c => !c.hasAttribute(":started") && c.getAttribute(":start") < eventLoop.getAttribute(
-        ":now")).length).pop();
+        c => !c.hasAttribute(":started") && c.getAttribute(":start") < eventLoop.getAttribute(
+          ":now")).length).pop();
     if (!nonResolvedTask)
       return this.active = false;
     const timeToWait = (parseInt(nonResolvedTask.getAttribute(':start')) || 0) - new Date().getTime();
@@ -213,18 +217,32 @@ class EventLoop extends FirstConnectedCallbackMixin {
       this.timer = setTimeoutOG(() => this.findNextTask(), timeToWait);
       this.active = false;
     }
-   }
+  }
+
+
+
+
 
   runTask(unresolvedTask) {
     this.active = true;
     if (this.timer)
       clearTimeout(this.timer);
     this.timer = 0;
-    if (unresolvedTask?.tagName === "EVENT")
-      propagateEvent(unresolvedTask);
+    if (unresolvedTask?.tagName === "EVENT") {
+      const target = document.querySelector(`[\\:uid='${unresolvedTask.getAttribute(":target")}']`);
+      if (!target)
+          throw new Error("there are no :target attribute on event element " + unresolvedTask.uid)
+      unresolvedTask.setAttribute(":started", Date.now());
+      propagateEvent.call(target, unresolvedTask);
+      runCallback(unresolvedTask);  //the same as non nested <task> //todo: rename to runCallback
+      unresolvedTask.setAttribute(":finished", Date.now());
+    }
     else {
       unresolvedTask.setAttribute(":started", Date.now());
-      let res = unresolvedTask.children?.length ? this.interpretTask(unresolvedTask) : runTimer(unresolvedTask);
+      let res = unresolvedTask.children?.length ? this.interpretTask(unresolvedTask) : runCallback(unresolvedTask);
+
+      //todo: set undefined res-type if res === undefined
+
       typeof res?.then === 'function' ? res.then(data => {
         this.finishTask(unresolvedTask, data)
       }) : this.finishTask(unresolvedTask, res);
@@ -232,10 +250,9 @@ class EventLoop extends FirstConnectedCallbackMixin {
       let startedTimestamp = unresolvedTask.getAttribute(":started");
       // if it has :started, but no :res, then it is :async-started.
       if (isAsync && startedTimestamp) {
-        // unresolvedTask.removeAttribute(":started");
         unresolvedTask.setAttribute(":async-started", startedTimestamp)
       }
-      // if it has :res, then it is :finished :async-finished.  //todo: problem with promise I think. Recursive overwrite 'unresolvedTask'
+      // if it has :res, then it is :finished :async-finished.
       if (isAsync)
         unresolvedTask.setAttribute(":async-finished", Date.now()); //todo: Date.now() ??
     }
@@ -248,24 +265,28 @@ function convertElementToEvent(el) {
   if (el.original)
     return el.original;
   const e = new Event(el.getAttribute(':type'));
-  e.timeStamp = el.getAttribute(':time-stamp');
+  e.timeStamp = el.getAttribute(':created');
+  e.x = el.getAttribute(':x');
+  e.y = el.getAttribute(':y');
   el.hasAttribute(':default-prevented') && e.preventDefault();
   return e;
 }
 
-function makeEventElement(e, root) {
+function makeEventElement(e) {
   const el = document.createElement('event');
+  const targetId = e.uid;
+  const target = document.querySelector(`[\\:uid="${targetId}"]`);
+  const rootNode = target.getRootNode({composed: false});
+  rootNode && (rootNode.uid = rootNode.body?.getAttribute(":uid"));
   el.original = e;
+  el.setAttribute(":created", Date.now());
   el.setAttribute(':type', e.type);
-  el.setAttribute(':time-stamp', e.timeStamp);
-  el.setAttribute(':target', e.target?.uid || this.uid); //todo: add new +
-  el.setAttribute(':root', root instanceof Node ? root.uid : root);
-  e.defaultPrevented && el.setAttributeNode(document.createAttribute(':default-prevented'));
-  //todo add the x, y, and other relevant properties for the native events. and the other events.
-  //todo use a blacklist to exclude non-relevant properties?
+  el.setAttribute(':target', e?.uid || this.uid);
+  el.setAttribute(':root', rootNode instanceof Node ? rootNode.uid : rootNode);
+  el.setAttribute(':x', e.x);
+  el.setAttribute(':y', e.y);
   return el;
 }
-
 
 function makeTaskElement(cb, ms = 0) {   //todo: +1
   const el = document.createElement('task');      //todo: +1
@@ -273,8 +294,7 @@ function makeTaskElement(cb, ms = 0) {   //todo: +1
   el.setAttribute(":delay", ms);
   el.setAttribute(":start", Date.now() + ms);  //todo: +1
   const name = cb.name;
-  if (window[name]) {         //todo: add new +
-    el.setAttribute(':cb', name);
+  if (window[name]) {
     el.cb = cb;
     return el;
   } else {
@@ -291,8 +311,9 @@ window.setTimeout = function setTimeout(cb, ms) {
 
 const dispatchEventOG = EventTarget.prototype.dispatchEvent;
 Object.defineProperty(EventTarget.prototype, 'dispatchEvent', {
-  value: function (e, root) {
-    document.querySelector("event-loop").prepend(makeEventElement(e, root));
+  value: function (e) {
+    const eventElement = makeEventElement(e);
+    document.querySelector("event-loop").prepend(eventElement);
   }
 });
 
