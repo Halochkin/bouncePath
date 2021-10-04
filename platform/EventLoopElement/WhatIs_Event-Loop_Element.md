@@ -130,7 +130,7 @@ Object.defineProperty(EventTarget.prototype, 'dispatchEvent', {
   }
 });
 ```
-`MakeEventElement()` is used to create an <event> element. 
+`MakeEventElement()` is used to create an `<event>` element. 
 
 The function defines the basic attributes, 
 
@@ -145,7 +145,7 @@ The function defines the basic attributes,
 function makeEventElement(e) {
   const el = document.createElement('event')
   const target = document.querySelector(`[\\:uid="${(e.uid)}"]`);
-  const rootNode = target.getRootNode({composed: false});
+  const rootNode = target?.getRootNode({composed: false});
   rootNode && (rootNode.uid = rootNode.body?.getAttribute(":uid"));
   el.original = e;
   el.setAttribute(":created", Date.now());
@@ -208,7 +208,6 @@ The MutationObserver is used to track the addition of new items.  Each time a ca
 ```
 
 The `findNextTask()` keeps track of all items that have been added and are waiting to execute or end a delay.
-
 
 The pending `<task>` elements contain only those attributes which were defined at creation. Therefore, the main guideline
 for waiting elements is the absence of `:started `attribute. 
@@ -279,7 +278,6 @@ Then the `:started` attribute defined, which shows the time when the event start
 
 The event propagation done with `propagateEvent()`.
  
-
 ```javascript
 function propagateEvent(el) {
   const e = convertElementToEvent(el);
