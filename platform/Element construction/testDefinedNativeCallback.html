@@ -1,15 +1,11 @@
-<a-element a>
-    <div></div>
-</a-element>
-
+<div id="parent"></div>
 
 <script>
-
 
   class A extends HTMLElement {
     constructor() {
       super();
-      console.log('constructor A');
+      console.warn('constructor A');
       console.log("isConnected : ", this.isConnected);
       console.log("parentNode : ", this.parentNode);
       console.log("childNodes : ", this.childNodes);
@@ -17,7 +13,8 @@
     }
 
     connectedCallback() {
-      console.log("connectedCallback A");
+      console.warn("connectedCallback A");
+
       console.log("- - - - - - - - - - - - - - - - - ");
     }
 
@@ -26,17 +23,24 @@
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
-      console.log("attributeChangedCallback A");
+      console.warn("attributeChangedCallback A");
+
     }
   }
 
 
+  // window.addEventListener("click", e => {
+  //   let element = document.createElement("a-element");
+  //   element.setAttributeNode(document.createAttribute("b"));
+  //   const childElement = document.createElement("div");
+  //   element.appendChild(childElement);
+  //   document.querySelector("#parent").appendChild(element);
+  // });
+
   window.addEventListener("click", e => {
-    const element = document.createElement("a-element");
-    element.setAttributeNode(document.createAttribute("b"));
-    const childElement = document.createElement("div");
-    element.appendChild(childElement);
-    document.body.appendChild(element);
+    let element = new A();
+    element.setAttributeNode(document.createAttribute("a"))
+    document.querySelector("#parent").appendChild(element);
   });
 
 
