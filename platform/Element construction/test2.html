@@ -1,72 +1,23 @@
 <div style="position: absolute; top: 0; right: 0; border: 4px double grey">
-    <button id="legal">legal</button>
-    <br>
-    <button id="context">context</button>
-    <br>
+    <button id="legal">legal</button><br>
+    <button id="context">context</button><br>
     <style>
-        input {
-            background: #666666;
-        }
-
-        #isConnected {
-            background-color: blue;
-        }
-
-        #hasParentNode {
-            background-color: lightblue;
-        }
-
-        #hasAttributes {
-            background-color: orange;
-        }
-
-        #hasChildNodes {
-            background-color: hotpink;
-        }
-
-        #isLoading {
-            background-color: yellow;
-        }
-
-        #isCurrentScript {
-            background-color: grey;
-        }
-
-        #isEventListener {
-            background-color: darkgrey;
-        }
-
-        #currentElementIsLastElement {
-            background-color: purple;
-        }
-
-        #currentScriptIsLastElement {
-            background-color: mediumpurple;
-        }
-
-        #syncUpgrade {
-            background-color: red;
-        }
-
-        #predictive {
-            background-color: green;
-        }
-
-        #NEW {
-            background-color: brown;
-        }
-
-        #withinCount {
-            background: burlywood;
-        }
-
-        #new_target {
-            background: salmon;
-        }
-
-        #error {
-            background-color: red;
-        }
+        input{ background: #666666;}
+        #isConnected {background-color: blue;}
+        #hasParentNode {background-color: lightblue;}
+        #hasAttributes {background-color: orange;}
+        #hasChildNodes {background-color: hotpink;}
+        #isLoading {background-color: yellow;}
+        #isCurrentScript {background-color: grey;}
+        #isEventListener {background-color: darkgrey;}
+        #currentElementIsLastElement {background-color: purple;}
+        #currentScriptIsLastElement {background-color: mediumpurple;}
+        #syncUpgrade {background-color: red;}
+        #predictive {background-color: green;}
+        #NEW {background-color: brown;}
+        #withinCount{background: burlywood;}
+        #new_target{background: salmon;}
+        #error {background-color: red;}
     </style>
     <input id='hasParentNode' type="checkbox"><label for="hasParentNode">hasParentNode</label><br>
     <input id='hasAttributes' type="checkbox"><label for="hasAttributes">hasAttributes</label><br>
@@ -84,13 +35,13 @@
     <input id='new_target' type="checkbox"><label for="new_target">new_target</label><br>
 
     <script>
-      document.addEventListener('click', ({target: {id, tagName}}) => {
+      document.addEventListener('click', ({target:{id, tagName}}) => {
         if (tagName === "BUTTON") {
           for (let test of document.querySelectorAll('test-html'))
             test.hasAttribute(id) ? test.removeAttribute(id) : test.setAttribute(id, '');
         }
       });
-      document.addEventListener('change', ({target: {id}}) => {
+      document.addEventListener('change', ({target: {id}})=>{
         for (let test of document.querySelectorAll('test-html'))
           test.hasAttribute(id) ? test.removeAttribute(id) : test.setAttribute(id, '');
       });
@@ -143,7 +94,7 @@
         <script>setTimeout(() => document.body.prepend(window.test))</script>
     </noscript>
 </test-html>
-
+ ----------------------------------------------------------------------------------------------------
 <test-html id="innerHTML empty disconnected">
     <noscript>
         <script src="./WebComp.js"></script>
@@ -187,6 +138,8 @@
         </script>
     </noscript>
 </test-html>
+
+
 
 <test-html id="innerHTML empty">
     <noscript>
@@ -250,6 +203,8 @@
     </noscript>
 </test-html>
 
+
+
 <test-html id="createElement empty disconnected">
     <noscript>
         <script src="./WebComp.js"></script>
@@ -257,7 +212,7 @@
     </noscript>
 </test-html>
 
-<test-html id="NEW createElement disconnected async">
+<test-html id="createElement disconnected async">
     <noscript>
         <script src="./WebComp.js"></script>
         <script>setTimeout(function () {
@@ -282,3 +237,5 @@
 </test-html>
 
 <script src='TestComponent2.js'></script>
+
+
