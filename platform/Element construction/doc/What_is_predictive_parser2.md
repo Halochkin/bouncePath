@@ -1,8 +1,7 @@
-
+# Web component construction
 
 When the browser starts to receive HTML page data over the network, it immediately launches its parser to convert the HTML
 into a document object model (DOM).
-
 The first step of this parsing process is to break down HTML into tokens that represent start tags (`<div>`), end tags (`</div>`),
 and their contents.From this it builds the DOM.
 When the parser encounters an external resource, such as a CSS or JavaScript file, it tries, to retrieve it. 
@@ -11,8 +10,7 @@ The parser will continue to work as the CSS file is loaded, but it will block re
 When the browser already knows the tag, it will call the `constructor()`, and maybe `attributeChangedCallback()` and
  `connectedCallback()` for those elements immediately.
 
-
-### element properties ?
+### Some important (commonly used) Element properties on constructor phase
 
 When an element is created, different properties of the element defined at the `constructor()` stage. 
 Their values may be different, depending on the method of creation. The most commonly used properties are:
@@ -36,38 +34,63 @@ Their values may be different, depending on the method of creation. The most com
  * `new_target` - pseudo-property lets to detect whether a function or constructor was called using the `new` operator.
 
 
-### predictive parser
+
+## `Predictive parser`
 
 When the browser starts to receive HTML page data over the network, it immediately launches its parser to convert the HTML
 into a document object model (DOM). Let's consider several examples of predictive parsing.
 
-#### predictive empty
-Let's see what properties are defined during the constructor phase when you create an element normally using html.
+> In order to consider two elements (light and shadow) at the same time, the test `<web-comp>` contains a shadow tree and 
+>`<inner-component>` inside. The shadow component copies all attributes of the light component using attributeChangedCallback();.
+
+#### Predictive empty
+
+When previously defined a component and then added to the DOM.
+
 ```html
 <script src="./WebComp.js"></script>
 <web-comp></web-comp>
 ```
-As a result, browser define next properties in element object
-* `isLoading`
-* `newTarget`
-* `predictive`
 
-#### predictive
-Let's add an attribute and a test node as a child.
-```html
-<script src="./WebComp.js"></script>
-<web-comp a="a" b="b">hello sunshine</web-comp>
-```
-Result is the same.
+The original component will have the following properties 
 
 * `isLoading`
 * `newTarget`
 * `predictive`
-This means that with this method, the attributes are not defined at the constructor stage, but later. This means that this approach is not suitable for creating elements that use their attribute values in the constructor step. 
 
-Consider other approaches. 
+The shadow component:
 
-### upgrade process
+* `isLoading`
+* `isCurrentScript`
+* `newTarget`
+* `withinCount` 
+
+#### Predictive with attributes
+
+   Let's add an attribute and a test node as a child.
+   ```html
+    <script src="./WebComp.js"></script>
+    <web-comp a="a" b="b">hello sunshine</web-comp>
+   ```
+   
+   The original component will have the same properties, even if attributes have been added
+   
+   * `isLoading`
+   * `newTarget`
+   * `predictive`
+   
+   The shadow component:
+   
+   * `hasAttributes`
+   * `isLoading`
+   * `isCurrentScript`
+   * `newTarget`
+   * `withinCount` 
+
+
+This demos shows that with this approach, the attributes are not defined at the constructor stage, but later. This means that this approach is not suitable for creating elements that use their attribute values in the constructor step. 
+
+### `Upgrade process`
 
 **The upgrade process** is the process that triggers callbacks to the custom element lifecycle after it has been defined with `customElements.define()`. 
 
@@ -87,23 +110,32 @@ That is why during the upgrade process you will *always* get a `connectedCallbac
 in JS memory only (you have created it using document.createElement(`element-a`) and not yet connected it), then the "upgrade process"
 will be called on that element at the moment you append it (directly or indirectly) to the main DOM.
 
-#### upgrade empty
+#### Upgrade empty
 
-First we add a web component to the DOM, and only then we define it.
+First add a web component to the DOM, and only then we define it.
 ```html
 <web-comp></web-comp>
 <script src="./WebComp.js"></script>
 ```
-We get the following properties
 
-* `hasParentNode`  - body
+It produces the following properties for light DOM component
+ 
+* `hasParentNode`  - #body
 * `isConnected`  
 * `isLoading`
 * `isCurrentScript`
 * `currentScriptIsLastElement`
 * `newTarget`
 
-#### upgrade
+The shadow component:
+
+* `isLoading`
+* `isCurrentScript`
+* `currentScriptIsLastElement`
+* `newTarget`
+* `withinCount` 
+
+#### Upgrade with attributes and children 
 
 Let's repeat the previous example, but with the use of attributes and children's elements.
 
@@ -111,8 +143,10 @@ Let's repeat the previous example, but with the use of attributes and children's
 <web-comp a="a" b="b">hello <b>beautiful</b> sunshine</web-comp>
 <script src="./WebComp.js"></script>
 ```
-Now the result will be next
-* `hasParentNode`  - body
+
+It produces the following properties for light DOM component
+
+* `hasParentNode`  - #body
 * `hasAttributes`  - [a, b]
 * `hasChildNodes`  - [`<b>`]
 * `isConnected`
@@ -121,18 +155,28 @@ Now the result will be next
 * `currentScriptIsLastElement`
 * `newTarget`
 
-#### upgrade Within
+The shadow component:
 
-If you insert a script that defines a component as a child of that component it will allow to define it. 
+* `hasAttributes`  - [a, b]
+* `isLoading`
+* `isCurrentScript`
+* `currentScriptIsLastElement`
+* `newTarget`
+* `withinCount` 
+
+#### Upgrade within
+
+If you insert a `<script>` that defines a component as a child of that component it will allow to define it. 
 
 ```html
 <web-comp a="a" b="b"> hello
   <script src="./WebComp.js"></script> sunshine
 </web-comp>
 ```
-And defines next properties
 
-* `hasParentNode`  - body
+Browser defines next properties for light DOM component
+
+* `hasParentNode`  - #body
 * `hasAttributes`  - [a, b]
 * `hasChildNodes`  - [`<b>`]
 * `isConnected`  
@@ -142,40 +186,71 @@ And defines next properties
 * `syncUpgrade`
 * `newTarget`
 
+The shadow component:
 
-#### upgrade async 
-In some cases, an element may be created, then defined, and only then added to the DOM.
+* `hasAttributes`  - [a, b]
+* `isLoading`
+* `isCurrentScript`
+* `currentScriptIsLastElement`
+* `newTarget`
+* `withinCount` 
+
+#### Upgrade async 
+
+In some cases, an element can be just created as an object, then defined, and only then added to the DOM.
 ```html
  <div></div>
  <script>window.test = document.createElement('web-comp');</script>
  <script src="./WebComp.js"></script>
  <script>setTimeout(() => document.body.prepend(window.test))</script>
 ```
-As a result, the following properties will be defined
 
-* `hasParentNode`  - body
+It produces the following properties for light DOM component:
+
+* `hasParentNode`  - #body
 * `isConnected`  
 * `newTarget`
 
-## innerHTML
+The shadow component:
+
+* `newTarget`
+* `withinCount` 
+
+In this approach, all attributes are already defined at the designer stage. This is because when the browser sees an 
+unidentified element, it still defines its properties, but its prototype is HTMLUnknownElement. When the element is defined,
+it changes to the class associated with it and calls its constructor. That is, the browser doesn't waste time assigning 
+attributes, but already knows them.
+So when you need to use attributes in the design phase, that's a pretty good way to go.
+
+## `innerHTML()`
 
 > The Element `innerHTML` interface property sets or gets the HTML markup of the child elements.
 
-#### innerHTML empty disconnected
+#### innerHTML empty not connected
 
-Creating empty element and assigning it a web component as a child using `.innerHTML`. Disconnected means that the element not added to the DOM, only created.
+Creating empty element and assigning it a web component as a child using `.innerHTML`.
 
 ```javascript
 const div = document.createElement('div');
 div.innerHTML = '<web-comp></web-comp>';
 ```
-As a result the following properties will be defined
+
+It produces the following properties for light DOM component:
+
 * `hasParentNode`  - #div
 * `isLoading`
 * `isCurrentScript`
 * `newTarget`
 
-#### insertAdjacentHTML empty disconnected
+The shadow component:
+
+* `isLoading`
+* `isCurrentScript`
+* `newTarget`
+* `withinCount` 
+
+
+#### insertAdjacentHTML empty not connected
 
 A similar method is `insertAdjacentHTML()`.
 
@@ -183,13 +258,24 @@ A similar method is `insertAdjacentHTML()`.
 const div = document.createElement('div');
 div.insertAdjacentHTML('afterbegin', '<web-comp></web-comp>');
 ```
-It produces a similar result.
+
+It produces the following properties for light DOM component:
+
 * `hasParentNode`  - #div
 * `isLoading`
 * `isCurrentScript`
 * `newTarget`
 
-#### innerHTML attributesChildren disconnected
+The shadow component:
+
+* `isLoading`
+* `isCurrentScript`
+* `newTarget`
+* `withinCount` 
+
+The same result. The browser handles them the same way.
+
+#### innerHTML attributesChildren not connected
 
 Create an element with attributes and a text node inside. 
 ```javascript
@@ -197,7 +283,7 @@ const div = document.createElement('div');
 div.innerHTML = '<web-comp a="a" b="b">hello sunshine</web-comp>';
 ```
 
-The result will be as follows.
+It produces the following properties for light DOM component:
 
 * `hasParentNode`  - #div
 * `hasAttributes`  - [a, b]
@@ -206,7 +292,15 @@ The result will be as follows.
 * `isCurrentScript`
 * `newTarget`
 
-#### innerHTML attributesChildren disconnected nested inside
+The shadow component:
+
+* `hasAttributes`  - [a, b]
+* `isLoading`
+* `isCurrentScript`
+* `newTarget`
+* `withinCount` 
+
+#### innerHTML attributesChildren not connected nested inside
 
 Creating an element with attributes and a similar web component as a child. 
 
@@ -218,7 +312,7 @@ div.innerHTML = `
 </web-comp>`;
 ```
 
-The result of the _parent_ element is as follows
+The result of the _parent_ lightDOM element is as follows
 
 * `hasParentNode`  - #div
 * `hasAttributes`  - [a, b]
@@ -226,6 +320,14 @@ The result of the _parent_ element is as follows
 * `isLoading`
 * `isCurrentScript`
 * `newTarget`
+
+The shadow component:
+
+* `hasAttributes`  - [a, b]
+* `isLoading`
+* `isCurrentScript`
+* `newTarget`
+* `withinCount` 
 
 The result of the _children_ element is
 
@@ -235,12 +337,19 @@ The result of the _children_ element is
 * `isLoading`
 * `isCurrentScript`
 * `newTarget`
-* `withinCount` - is a child of another `<web-comp`.
+* `withinCount` - is a child of another `<web-comp>`.
 
+The shadow component:
+
+* `hasAttributes`  - [a, b]
+* `isLoading`
+* `isCurrentScript`
+* `newTarget`
+* `withinCount` 
 
 #### innerHTML empty
 
-Adding a `<web-comp>` component to an element in the DOM.
+The `<web-comp>` component is added to the element in the DOM as a child.
 
 ```html
 <script src="./WebComp.js"></script>
@@ -250,7 +359,7 @@ document.querySelector('div').innerHTML = '<web-comp></web-comp>';
 </script>
 ```
 
-Result
+LightDOM component result:
 
 * `hasParentNode`  - #div
 * `isConnected`   
@@ -258,8 +367,14 @@ Result
 * `isCurrentScript`
 * `newTarget`
 
-#### innerHTML async
+The shadow component:
 
+* `isLoading`
+* `isCurrentScript`
+* `newTarget`
+* `withinCount` 
+
+#### innerHTML async
 
 ```html
 <script src="./WebComp.js"></script>
@@ -270,15 +385,25 @@ Result
 </script>
 ```
 
-* `hasParentNode`  - #div
-* `isConnected`   
+It produces the following properties for light DOM component:
+
+* `hasParentNode`  - #body
+* `isConnected`  
 * `newTarget`
 
-## cloneNode
+The shadow component:
+
+* `newTarget`
+* `withinCount` 
+
+When you use `.innerHTML`, the browser handles the element similarly to the upgrade process. The browser determines attributes even though the component was defined before it was added to the DOM, it does not repeat the predictive parser.
+
+
+## `cloneNode()`
 
 Another way to create an element is to call `.cloneNode(true)`. Every time a component is copied, its constructor will be called. Therefore, we consider the properties of the original and copied components.
 
-#### cloneNode above disconnected
+#### cloneNode above, not connected.
 Let's look at an example where we create an element then define its `.innerHTML` like the example above and then copy it.
 ```javascript
 const div = document.createElement('div');
@@ -286,7 +411,7 @@ div.innerHTML = `<web-comp a="a" b="b">hello</web-comp>`;
 div.cloneNode(true);
 ```
 
-The original component will have the following properties 
+The _original_ component will have the following properties 
 * `hasParentNode`  - #div
 * `hasAttributes`  - [a, b]
 * `hasChildNode`  - #text
@@ -294,10 +419,26 @@ The original component will have the following properties
 * `isCurrentScript`
 * `newTarget`
 
-The cloned component 
+The shadow component:
+
+* `hasAttributes`  - [a, b]
+* `isLoading`
+* `isCurrentScript`
+* `newTarget`
+* `withinCount` 
+
+The _cloned_ component 
 * `hasParentNode`  - #div
 * `hasAttributes`  - [a, b]
 * `hasChildNode`  - #text
+* `isLoading`
+* `isCurrentScript`
+* `newTarget`
+* `withinCount`  - is a child of another `<web-comp>`.
+
+The shadow component:
+
+* `hasAttributes`  - [a, b]
 * `isLoading`
 * `isCurrentScript`
 * `newTarget`
@@ -310,30 +451,40 @@ If you combine the process of upgrading and cloning the node afterwards
     <web-comp></web-comp>
  </div>
  <script src="./WebComp.js"></script>
-
  <script>setTimeout(function () {
     document.querySelector('div').cloneNode(true);
   })</script>
 ```
 
-The original component will have the following properties 
+The _original_ component will have the following properties 
+
 * `hasParentNode`  - #div
-* `hasAttributes`  - [a, b]
-* `hasChildNode`  - #text
+* `isConnected`
 * `isLoading`
 * `isCurrentScript`
+* `currentScriptIsLastElement`
 * `newTarget`
 
-The cloned component 
-* `hasParentNode`  - #div
-* `hasAttributes`  - [a, b]
-* `hasChildNode`  - #text
+The shadow component:
+
 * `isLoading`
 * `isCurrentScript`
+* `currentScriptIsLastElement`
 * `newTarget`
 * `withinCount` 
 
-#### cloneNode empty disconnected
+The _cloned_ component 
+
+* `hasParentNode`  - #div
+* `newTarget`
+* `withinCount`
+
+The shadow component:
+
+* `newTarget`
+* `withinCount`  
+
+#### cloneNode empty not connected
 
 Copying a created component
 ```html
@@ -343,20 +494,36 @@ Copying a created component
     empty.cloneNode(true);
   </script>
 ```
-define the following properties
+Browser define the following properties
 
-The original component will have the following properties  
+The _original_ lightDOM component will have the following properties:
+
 * `isLoading`
 * `isCurrentScript`
 * `newTarget`
 
-The cloned component 
+The shadow component:
+
 * `isLoading`
 * `isCurrentScript`
 * `newTarget`
-* `withinCount` 
+* `withinCount`
+
+The cloned lightDOM component:
+
+* `isLoading`
+* `isCurrentScript`
+* `newTarget`
+
+The shadow component:
+
+* `isLoading`
+* `isCurrentScript`
+* `newTarget`
+* `withinCount`
 
 #### cloneNode empty
+
 Copying a component from the DOM 
 
 ```html
@@ -367,7 +534,7 @@ Copying a component from the DOM
 
 will give the following properties
 
-The original component will have the following properties 
+The _original_ lightDOM component will have the following properties 
 * `hasParentNode`  - #div
 * `hasAttributes`  - [a, b]
 * `hasChildNode`  - #text
@@ -375,14 +542,33 @@ The original component will have the following properties
 * `isCurrentScript`
 * `newTarget`
 
-The cloned component 
+The shadow component:
+
+* `isLoading`
+* `isCurrentScript`
+* `currentScriptIsLastElement`
+* `newTarget`
+* `withinCount` 
+
+The _cloned_ lightDOM component:
+
 * `isLoading`
 * `isCurrentScript`
 * `newTarget`
 * `withinCount` 
 
+The shadow component:
+
+* `isLoading`
+* `isCurrentScript`
+* `newTarget`
+* `withinCount`  
+
+
+ The .cloneNode method also handles the element similar to the upgrade process. The browser does not ignore attributes and other properties.
 
 ## createElement 
+
 The `.createElement()` creates an element with the tag that is given in the argument, or `HTMLUnknownElement` if the tag name is not recognized.
 
 #### createElement empty disconnected
@@ -392,11 +578,19 @@ Creating an empty new component
 <script src="./WebComp.js"></script>
 <script>document.createElement('web-comp');</script>
 ```
-The browser will define the following properties
+The browser will define the following properties for lightDOM component:
 
 * `isLoading`
 * `isCurrentScript`
 * `newTarget`
+
+The shadow component:
+
+* `isLoading`
+* `isCurrentScript`
+* `newTarget`
+* `withinCount`
+
 
 #### createElement disconnected async
 
@@ -409,6 +603,60 @@ Asynchronous creation of an empty new component
   }, 10)</script>
 ```
 
-The browser will define the following properties
+The browser will define the following properties for lightDOM component:
 
 * `newTarget`
+
+The shadow component:
+
+* `newTarget`
+* `withinCount`
+
+## `new` keyword
+
+> The new operator lets developers create an instance of a user-defined object type or of one of the built-in object types that has a constructor function.
+
+#### `new()` empty, not connected
+
+Creating an element as an instance of a class
+
+```js
+  new WebComp();
+```
+
+The browser will define the following properties for lightDOM component:
+
+* `isLoading`
+* `isCurrentScript`
+* `newTarget`
+
+The shadow component:
+
+* `isLoading`
+* `isCurrentScript`
+* `newTarget`
+* `withinCount`
+
+#### `new()` eventListener, not connected
+
+Creating a component as a result of an event
+
+```html
+ <script>window.addEventListener('bob-bob', e => new WebComp())</script>
+ <script>window.dispatchEvent(new Event('bob-bob'))</script>
+```
+
+The browser will define the following properties for lightDOM component:
+
+* `isLoading`
+* `isCurrentScript`
+* `newTarget`
+* `withinCount`
+
+The shadow component:
+
+* `isLoading`
+* `isCurrentScript`
+* `isEventListener`
+* `newTarget`
+* `withinCount`

@@ -55,6 +55,12 @@ div[value] {
     background-color: lightgreen;
 }
 
+.shadowRoot[name]{
+    background-color: orange;
+}
+.insertAdjacentHTML[name]{
+    background-color: cadetblue;
+}
 
 div[value='false'], div[value='0'] {
     display: none;
@@ -134,3 +140,4 @@ div[value='false'], div[value='0'] {
 :host([hasParentNode]) div.row:not(.hasParentNode) {
     display: none;
 }
+

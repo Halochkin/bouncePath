@@ -50,14 +50,14 @@
 
 <test-html id="predictive empty" show-labels>
     <noscript>
-        <script src="./WebComp.js"></script>
+        <script src="WebCompInner.js"></script>
         <web-comp></web-comp>
     </noscript>
 </test-html>
 
 <test-html id="predictive">
     <noscript>
-        <script src="./WebComp.js"></script>
+        <script src="./WebCompWithInnerAttribute.js"></script>
         <web-comp a="a" b="b">hello sunshine</web-comp>
     </noscript>
 </test-html>
@@ -65,14 +65,14 @@
 <test-html id="upgrade empty">
     <noscript>
         <web-comp></web-comp>
-        <script src="./WebComp.js"></script>
+        <script src="WebCompInner.js"></script>
     </noscript>
 </test-html>
 
 <test-html id="upgrade">
     <noscript>
         <web-comp a="a" b="b">hello <b>beautiful</b> sunshine</web-comp>
-        <script src="./WebComp.js"></script>
+        <script src="WebCompWithInnerAttribute.js"></script>
     </noscript>
 </test-html>
 
@@ -80,7 +80,7 @@
     <noscript>
         <web-comp a="a" b="b">
             hello
-            <script src="./WebComp.js"></script>
+            <script src="WebCompWithInnerAttribute.js"></script>
             sunshine
         </web-comp>
     </noscript>
@@ -90,14 +90,14 @@
     <noscript>
         <div></div>
         <script>window.test = document.createElement('web-comp');</script>
-        <script src="./WebComp.js"></script>
+        <script src="WebCompInner.js"></script>
         <script>setTimeout(() => document.body.prepend(window.test))</script>
     </noscript>
 </test-html>
- ----------------------------------------------------------------------------------------------------
+
 <test-html id="innerHTML empty disconnected">
     <noscript>
-        <script src="./WebComp.js"></script>
+        <script src="WebCompInner.js"></script>
         <script>
           const div = document.createElement('div');
           div.innerHTML = '<web-comp></web-comp>';
@@ -107,7 +107,7 @@
 
 <test-html id="insertAdjacentHTML empty disconnected">
     <noscript>
-        <script src="./WebComp.js"></script>
+        <script src="WebCompInner.js"></script>
         <script>
           const div = document.createElement('div');
           div.insertAdjacentHTML('afterbegin', '<web-comp></web-comp>');
@@ -117,7 +117,7 @@
 
 <test-html id="innerHTML attributesChildren disconnected">
     <noscript>
-        <script src="./WebComp.js"></script>
+        <script src="WebCompWithInnerAttribute.js"></script>
         <script>
           const div = document.createElement('div');
           div.innerHTML = '<web-comp a="a" b="b">hello sunshine</web-comp>';
@@ -127,7 +127,7 @@
 
 <test-html id="innerHTML attributesChildren disconnected nested inside">
     <noscript>
-        <script src="./WebComp.js"></script>
+        <script src="WebCompWithInnerAttribute.js"></script>
         <script>
           const div = document.createElement('div');
           div.innerHTML = `
@@ -139,11 +139,9 @@
     </noscript>
 </test-html>
 
-
-
 <test-html id="innerHTML empty">
     <noscript>
-        <script src="./WebComp.js"></script>
+        <script src="WebCompInner.js"></script>
         <div></div>
         <script>document.querySelector('div').innerHTML = '<web-comp></web-comp>';</script>
     </noscript>
@@ -152,7 +150,7 @@
 <test-html id="innerHTML async">
     <noscript>
         <div></div>
-        <script src="./WebComp.js"></script>
+        <script src="WebCompInner.js"></script>
         <script>setTimeout(function () {
           document.querySelector('div').innerHTML = '<web-comp></web-comp>'
         }, 10);</script>
@@ -161,7 +159,7 @@
 
 <test-html id="cloneNode above disconnected">
     <noscript>
-        <script src="./WebComp.js"></script>
+        <script src="WebCompWithInnerAttribute.js"></script>
         <script>
           const div = document.createElement('div');
           div.innerHTML =
@@ -178,7 +176,7 @@
         <div>
             <web-comp></web-comp>
         </div>
-        <script src="./WebComp.js"></script>
+        <script src="WebCompInner.js"></script>
         <script>setTimeout(function () {
           document.querySelector('div').cloneNode(true);
         })</script>
@@ -187,7 +185,7 @@
 
 <test-html id="cloneNode empty disconnected">
     <noscript>
-        <script src="./WebComp.js"></script>
+        <script src="WebCompInner.js"></script>
         <script>
           const empty = document.createElement('web-comp');
           empty.cloneNode(true);
@@ -198,23 +196,28 @@
 <test-html id="cloneNode empty">
     <noscript>
         <web-comp></web-comp>
-        <script src="./WebComp.js"></script>
+        <script src="WebCompInner.js"></script>
+        <script>document.querySelector('web-comp').cloneNode(true);</script>
+    </noscript>
+
+</test-html><test-html id="cloneNode empty attributes">
+    <noscript>
+        <web-comp a="a"></web-comp>
+        <script src="WebCompInner.js"></script>
         <script>document.querySelector('web-comp').cloneNode(true);</script>
     </noscript>
 </test-html>
 
-
-
 <test-html id="createElement empty disconnected">
     <noscript>
-        <script src="./WebComp.js"></script>
+        <script src="WebCompInner.js"></script>
         <script>document.createElement('web-comp');</script>
     </noscript>
 </test-html>
 
 <test-html id="createElement disconnected async">
     <noscript>
-        <script src="./WebComp.js"></script>
+        <script src="WebCompInner.js"></script>
         <script>setTimeout(function () {
           document.createElement('web-comp')
         }, 10)</script>
@@ -223,18 +226,19 @@
 
 <test-html id="NEW empty disconnected">
     <noscript>
-        <script src="./WebComp.js"></script>
+        <script src="WebCompInner.js"></script>
         <script>new WebComp()</script>
     </noscript>
 </test-html>
 
 <test-html id="NEW eventListener disconnected">
     <noscript>
-        <script src="./WebComp.js"></script>
+        <script src="WebCompInner.js"></script>
         <script>window.addEventListener('bob-bob', e => new WebComp())</script>
         <script>window.dispatchEvent(new Event('bob-bob'))</script>
     </noscript>
 </test-html>
+
 
 <script src='TestComponent2.js'></script>
 
