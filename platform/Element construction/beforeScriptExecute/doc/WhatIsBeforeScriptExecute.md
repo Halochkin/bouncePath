@@ -173,19 +173,24 @@ is executed. At each trigger the value of the last parsed node is added to the `
    * `#comment` : - <!--1-->
 So lastParsed element is `#comment` and first value is `1`.
 2. Second result of MO callback is `web-comp a`. When its constructor is triggered, a new value will be added to the `res` variable, _+1 to the last value_. Therefore `2` will be added.
-3.Before starting to process the internal `web-comp b` which is in `web-comp a` the MO will be triggered with the values:
+
+3. Before starting to process the internal `web-comp b` which is in `web-comp a` the MO will be triggered with the values:
    * `#text`: "" - text node  before comment
    * `#comment`: <!--3--> 
    Last parsed element is comment and value is 3.
-4. `<web-comp b>` has the same logic as `<web-comp a>` . Value is `4`.
+
+4. The `<web-comp b>` has the same logic as `<web-comp a>` . Value is `4`.
 5. Next MO result is
   * `#text`: "" - text node of web-comp b
   * `#text`: "" - text node of web-comp a
   * `#script`
-  * `#text`: "5; res+=6;" - text node inside script.  
-When adding new values to a `res` variable, only the first number is used. Therefore the result is `5`. The idea here is to demonstrate that `5` is added before `6`.
-6. The browser then interprets res+=6 as part of the script, and adds `6` to `res`. 
-7. The `readystatechange` event is fired when the readyState attribute of a document has changed. It fires MO callback function and get `#comment <!--7-->` as the last value.
+  * `#text`: "5; res+=6;" - text node inside script.
+
+When adding new values to a `res` variable, only the first number is used. Therefore the result is `5`.
+
+6.The browser then interprets res+=6 as part of the script, and adds `6` to `res`. 
+
+7.The `readystatechange` event is fired when the readyState attribute of a document has changed. It fires MO callback function and get `#comment <!--7-->` as the last value.
 
 #### Result:
 
