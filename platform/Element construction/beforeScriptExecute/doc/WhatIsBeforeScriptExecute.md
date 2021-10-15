@@ -181,8 +181,8 @@ So lastParsed element is `#comment` and first value is `1`.
 
 4. The `<web-comp b>` has the same logic as `<web-comp a>` . Value is `4`.
 5. Next MO result is
-  * `#text`: "" - text node of web-comp b
-  * `#text`: "" - text node of web-comp a
+  * `#text`: "" - text node of `web-comp b`
+  * `#text`: "" - text node of `web-comp a`
   * `#script`
   * `#text`: "5; res+=6;" - text node inside script.
 
