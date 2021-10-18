@@ -15,33 +15,32 @@ It is a proprietary event specific to Gecko, [so it only supports in Mozilla Fir
 
 ## Polyfill
 
-This beforescriptexecute polyfill has two differences with the FF original event (I think)
-1. It dispatches a beforescriptexecute event at the *end of parsing*. This will happen whether or not any async or
-   `<script defer>` scripts is added or not.
-2. It will not dispatch any beforescriptexecute events *after* the document has finished loading and
+This `beforescriptexecute polyfill` has two differences with the Firefox original event
+1. It dispatches a `"beforescriptexecute"` event at the *end of parsing*. This will happen whether or not any `async` or
+   `defer` scripts is added or not.
+2. It will not dispatch any `"beforescriptexecute"` events *after* the document has finished loading and
    switched to interactive.
    
-During "loading"/interpretation of the main document:
-
+ 
  ```js
  new MutationObserver(callback).observe(document.documentElement, {childList: true, subtree: true});
 ```
 
-will aggregate all changes and only *break* off and
-trigger the callback **before** either
-1. a `<script>` begins (not defer, as they only run once "loading" has completed) or
-2. the predictive parser calls a custom element constructor
-   (which is essentially the same as if the predictive parser would invoke a script).
+MO (mutation observer) will observe all changes and trigger the callback when:
+
+
+1. `<script>` begins (not `defer`, as they only run once "loading" has completed);
+2. the predictive parser calls a custom element constructor (which is essentially the same as if the predictive parser would invoke a script).
+   
 The `beforescriptexecute` event has *one* property: `.lastParsed`.
-The lastParsed is the current position of the parser at the time of `beforescriptexecute` dispatch.
+
+The `lastParsed` is the current position of the parser at the time of `beforescriptexecute` dispatch.
+
 This position is known or guesstimated as:
-1. If a sync `<script>` is about to run, then
-   the document.currentScript represent the last parsed element.
-2. If the predictive parser calls an already defined custom element, then
-   the innermost element found from the <html> element in the document
+1. If a sync `<script>` is about to run, then the `document.currentScript` represent the last parsed element.
+2. If the predictive parser calls an already defined custom element, then the innermost element found from the <html> element in the document
    can be assumed to be the element currently being parsed.   
    
-
 ### Problems
 
 #### Problem 1:

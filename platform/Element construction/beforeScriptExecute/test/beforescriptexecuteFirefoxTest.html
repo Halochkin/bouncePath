@@ -1,0 +1,58 @@
+<script>
+
+  let res = "";
+
+
+  function deepestElement(root) {
+    while (root.lastChild) root = root.lastChild;
+    return root;
+  }
+
+  window.addEventListener('beforescriptexecute', ({e}) => {
+      const deepest = deepestElement(document.documentElement)
+      console.log(deepest);
+    }
+  );
+
+  document.addEventListener('readystatechange', function () {
+    console.log(res, res === '1234567');
+    console.log(document.readyState, document.readyState === 'interactive');
+  }, {once: true});
+
+  customElements.define('web-comp1', class WebComp extends HTMLElement {
+    constructor() {
+      super();
+      res += parseInt(res[res.length - 1]) + 1;
+    }
+
+    connectedCallback() {
+      res += "-";
+    }
+  });
+
+  customElements.define('web-comp2', class WebComp extends HTMLElement {
+    constructor() {
+      super();
+      res += parseInt(res[res.length - 1]) + 1;
+    }
+  });
+</script>
+<body>
+<!--0-->
+<div>zero</div>
+<h3>Test of parser break event</h3>
+<!--1-->
+<web-comp1 a> should ignore
+    <!--3-->
+    <web-comp2 b></web-comp2>
+</web-comp1>
+
+<script>console.log("script 1");
+console.log("script 1.1")
+debugger
+</script>
+<div></div>
+<script>console.log("script 2")</script>
+
+</body>
+<!--7-->

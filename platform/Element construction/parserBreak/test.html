@@ -1,0 +1,42 @@
+<script>
+  var res = "";
+  window.addEventListener('parser-break', ({lastParsed}) =>
+    res += lastParsed.textContent[0]
+  );
+
+  document.addEventListener('readystatechange', function () {
+    console.log(res, res === '1234567');
+    console.log(document.readyState, document.readyState === 'interactive');
+  }, {once: true});
+
+  customElements.define('web-comp1', class WebComp extends HTMLElement {
+    constructor() {
+      super();
+      res += parseInt(res[res.length - 1]) + 1;
+    }
+
+    connectedCallback() {
+      res += "-";
+    }
+  });
+
+  customElements.define('web-comp2', class WebComp extends HTMLElement {
+    constructor() {
+      super();
+      res += parseInt(res[res.length - 1]) + 1;
+    }
+  });
+</script>
+
+<script src="parserBreak.js"></script>
+<body>
+<!--0--><div>zero</div>
+  <h3>Test of parser break event</h3>
+<!--1--><web-comp1 a> should ignore
+    <!--3--><web-comp2 b></web-comp2>
+</web-comp1>
+
+<script>5;
+res += 6;</script>
+</body>
+<!--7-->
