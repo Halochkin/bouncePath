@@ -1,7 +1,11 @@
 <script>
-  var res = "";
-  window.addEventListener('parser-break', ({lastParsed}) =>
-    res += lastParsed.textContent[0]
+  var res = [];
+  window.addEventListener('parser-break', ({lastParsed}) => {
+      let x = lastParsed.textContent[0];
+      res.push(x)
+      Promise.resolve().then(() => res.push(x + "m"));
+      Promise.resolve().then(() => Promise.resolve().then(() => res.push(x + "mm")));
+    }
   );
 
   document.addEventListener('readystatechange', function () {
@@ -12,18 +16,18 @@
   customElements.define('web-comp1', class WebComp extends HTMLElement {
     constructor() {
       super();
-      res += parseInt(res[res.length - 1]) + 1;
+      res.push(parseInt(res[res.length - 1]) + 1 );
     }
 
     connectedCallback() {
-      res += "-";
+      res.push("-");
     }
   });
 
   customElements.define('web-comp2', class WebComp extends HTMLElement {
     constructor() {
       super();
-      res += parseInt(res[res.length - 1]) + 1;
+      res.push(parseInt(res[res.length - 1]) + 1);
     }
   });
 </script>
@@ -31,12 +35,13 @@
 <script src="parserBreak.js"></script>
 <body>
 <!--0--><div>zero</div>
-  <h3>Test of parser break event</h3>
+
+<h3>Test of parser break event</h3>
 <!--1--><web-comp1 a> should ignore
     <!--3--><web-comp2 b></web-comp2>
 </web-comp1>
 
 <script>5;
-res += 6;</script>
+res.push(6);</script>
 </body>
 <!--7-->

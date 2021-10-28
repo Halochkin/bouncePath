@@ -1,28 +1,51 @@
 <script src="../beforeScriptExecute/src/beforescriptexecute.js"></script>
-<script src="constructionFrame.js"></script>
+<script src="../constructionFrame/constructionFrame.js"></script>
+<script src="AttributeReadyCallback.js"></script>
+<script src="ChildReadyCallback.js"></script>
 <script>
   (function () {
-    let count = 0;
-
-    function printFrame(type, frame) {
-      console.log(frame.__id ??= ++count, type, frame.toString());
+    function printCB(type, el) {
+      console.log([el.__id, type]);
     }
 
-    ConstructionFrame.observe('start', frame => printFrame(frame.state, frame));
-    ConstructionFrame.observe('end', frame => printFrame(frame.state, frame));
-    ConstructionFrame.observe('complete', frame => printFrame(frame.state, frame));
+    let ids = 0;
+    class WebComp extends HTMLElement {
 
-    customElements.define('web-comp', class WebComp extends HTMLElement {
       constructor() {
         super();
-        printFrame('constructor', ConstructionFrame.now);
+        this.__id = ++ids;
+        printCB('constructor', this);
       }
-    });
+
+      attributeChangedCallback() {
+        super.attributeChangedCallback();
+        printCB("attributeChanged", this);
+      }
+
+      connectedCallback() {
+        super.connectedCallback();
+        printCB("connected", this);
+      }
+
+      attributeReadyCallback() {
+        printCB("attributeReady", this);
+      }
+
+      childReadyCallback() {
+        printCB("childReady", this);
+      }
+
+      static get observedAttributes() {
+        return ["a"];
+      }
+    }
+
+    customElements.define('web-comp', WebComp);
   })();
 </script>
 
 <h3>This is a test of siblings</h3>
-<web-comp></web-comp>
+<web-comp a></web-comp>
 <web-comp></web-comp>
 
 <h3>This is a test of nested</h3>

@@ -5,6 +5,10 @@
    *  1. construction-start. Dispatched immediately *before* a new constructionFrame starts.
    *  2. construction-end.   Dispatched immediately *after* a constructionFrame ends. Has one property,
    *                         .ended which is the constructionFrame recently dropped.
+   *                         runs shadow-light, bottom-up, right-left.
+   *  3. construction-complete. Dispatched after a top constructionFrame ends. Has one property: .completed
+   *                         which is a top-down iterator of all the frames completed.
+   *                         runs light-shadow, top-down, left-right.
    *
    * The ConstructionFrame API depends on:
    *  1. beforescriptexecute event.
@@ -87,102 +91,277 @@
    */
   let now;
 
-  window.ConstructionFrame = class ConstructionFrame {
+  class ConstructionFrame {
 
     #children = [];
+    #parent;
+    #state;
 
-    constructor(type, parent) {
-      this.type = type;
-      this.parent = parent;                             //todo make parent hidden again.
-      this.parent?.#children.push(this);
+    static #observers = {'start': [], 'end': [], 'complete': []};
+
+    constructor(el, args) {
+      this.el = el;
+      this.args = args;
+      this.#parent = now;
+      now = this;
+      this.#parent?.#children.push(this);
+      this.#callObservers('start');
+    }
+
+    #callObservers(state) {
+      this.#state = state;
+      ConstructionFrame.#observers[state].forEach(cb => cb(this));
+    }
+
+    #complete() {
+      this.#callObservers('complete');
+      this.#children.forEach(frame => frame.#complete());
+    }
+
+    get parent() {
+      return this.#parent;
+    }
+
+    get state() {
+      return this.#state;
     }
 
     toString() {
-      return this.parent ? this.parent.toString() + ', ' + this.type : this.type;
-    }
-
-    static start(type) {
-      const frame = now = new ConstructionFrame(type, now);
-      window.dispatchEvent(new Event('construction-start'));
-      return frame;
-    }
-
-    static end(frame) {
-      const endEvent = new Event('construction-end');
-      endEvent.ended = frame;
-      window.dispatchEvent(endEvent);
+      const parent = this.#parent ? this.#parent.toString() + ', ' : '';
+      return parent + this.constructor.name.slice(0, -17) + '#' + this.#state;
     }
 
     static get now() {
       return now;
     }
+
+    static observe(state, cb) {
+      this.#observers[state]?.push(cb);
+    }
+
+    static disconnect(state, cb) {
+      const ar = this.#observers[state];
+      if (!ar) return;
+      const pos = ar.indexOf(cb);
+      pos >= 0 && ar.splice(pos, 1);
+    }
+
+    end() {
+      this.#callObservers('end');
+      !this.#parent && this.#complete();
+      now = this.#parent;
+    }
   }
 
-  function wrapConstructionFunction(og, type) {
-    return function constructHtmlElement(...args) {
-      const frame = ConstructionFrame.start(type);
+  window.ConstructionFrame = ConstructionFrame;
+
+  class SingleConstructionFrame extends ConstructionFrame {
+    #el;
+
+    end(node) {
+      this.#el = node;
+      super.end();
+    }
+
+    * nodes() {
+      yield this.#el;
+    }
+  }
+
+  class ListConstructionFrame extends ConstructionFrame {
+    #nodes;
+
+    end(nodes) {
+      this.#nodes = nodes;
+      super.end();
+    }
+
+    * nodes() {
+      for (let n of recursiveNodes2(this.#nodes))
+        yield n;
+    }
+  }
+
+  function* recursiveNodes(el) {
+    yield el;
+    if (el.childNodes)
+      for (let c of el.childNodes)
+        for (let desc of recursiveNodes(c))
+          yield desc;
+  }
+
+  function* recursiveNodes2(nodes) {
+    for (let el of nodes) {
+      yield el;
+      if (el.childNodes)
+        for (let c of el.childNodes)
+          for (let desc of recursiveNodes(c))
+            yield desc;
+    }
+  }
+
+  function* recursiveNodesWithSkips(el, skips) {
+    yield el;
+    if (el.childNodes)
+      for (let c of el.childNodes)
+        if (skips.indexOf(c) < 0)
+          for (let desc of recursiveNodes(c))
+            yield desc;
+  }
+
+  function* siblingUntil(start, end) {
+    for (let next = start.nextSibling; next !== end; next = next.nextSibling)
+      yield next;
+  }
+
+  class UpgradeConstructionFrame extends ConstructionFrame {
+    #nodes = [];
+    #tagName;
+
+    constructor(el, tagName) { //todo I need the element here because the insertAdjacentHTML needs it.
+      super();
+      this.#tagName = tagName;
+    }
+
+    get tagName() {
+      return this.#tagName;
+    }
+
+    pushElement(el) {
+      this.#nodes.push(el);
+    }
+
+    * nodes() {
+      for (let n of this.#nodes)
+        yield n;
+    }
+  }
+
+  class DocumentCreateElementConstructionFrame extends SingleConstructionFrame {
+  }
+
+  class CloneNodeConstructionFrame extends ListConstructionFrame {
+    end(res){
+      super.end([res]);
+    }
+  }
+
+  class InnerHTMLConstructionFrame extends ListConstructionFrame {
+    end(res){
+      super.end(this.el.childNodes);
+    }
+  }
+
+  function insertAdjacentPrePositions(pos, el) {
+    return pos === 'beforebegin' ? [el.previousSibling, el] :
+      pos === 'afterend' ? [el, el.nextSibling] :
+        pos === 'afterbegin' ? [undefined, el.firstChild] :
+          pos === 'beforeend' ? [el.lastChild, undefined] :
+            null;
+  }
+
+  class InsertAdjacentHTMLConstructionFrame extends ConstructionFrame {
+    #start;
+    #end;
+
+    constructor(el, position) {
+      super();
+      [this.#start, this.#end] = insertAdjacentPrePositions(position, el);
+    }
+
+    * nodes() {
+      for (let n of recursiveNodes2(siblingUntil(this.#start || this.firstChild, this.#end)))
+        yield n;
+    }
+  }
+
+  class PredictiveConstructionFrame extends ConstructionFrame {
+
+    #skips;
+    end(skips) {
+      this.#skips = skips;
+      super.end();
+    }
+
+    * nodes() {
+      for (let n of recursiveNodesWithSkips(this.el, this.#skips))
+        yield n;
+    }
+  }
+
+
+  function monkeyPatch(proto, prop, setOrValue, Type) {
+    const descriptor = Object.getOwnPropertyDescriptor(proto, prop);
+    const og = descriptor[setOrValue];
+    descriptor[setOrValue] = function constructHtmlElement(...args) {
+      const frame = new Type(this, ...args);
       const res = og.call(this, ...args);
-      now = frame.parent;                                        //todo make parent hidden again.
-      ConstructionFrame.end(frame);
+      frame.end(res, this, ...args);
       return res;
     };
-  }
-
-  function monkeyPatch(proto, prop, setOrValue) {
-    const descriptor = Object.getOwnPropertyDescriptor(proto, prop);
-    descriptor[setOrValue] = wrapConstructionFunction(descriptor[setOrValue], proto.constructor.name + '.' + prop);
     Object.defineProperty(proto, prop, descriptor);
   }
 
-  monkeyPatch(Element.prototype, "outerHTML", 'set');
-  monkeyPatch(Element.prototype, "innerHTML", 'set');
-  monkeyPatch(ShadowRoot.prototype, "innerHTML", 'set');
-  monkeyPatch(Element.prototype, "insertAdjacentHTML", 'value');
-  monkeyPatch(Node.prototype, "cloneNode", 'value');
-  monkeyPatch(Document.prototype, "createElement", 'value');
-  monkeyPatch(CustomElementRegistry.prototype, "define", 'value');
 
-  if (document.readyState !== 'loading')
-    return;
+  //innerHTML => deep from childNodes                                        res
+  //insertAdjacent => custom made list.                               start  res
+  //cloneNode(deep) => deep from a single point                              res   deep = false? documentCreateElement  : CloneNode
+  //cloneNode(false) => flat from a single point                             res
+  //createElement() => flat from a single point                              res
+  //predictive => deep from childNodes but without skips         con               (not for attributes? because they might overlap?)
+  //upgrade => flat from a list                                  con               (not for attributes? because they might overlap?)
 
+  //todo To make it as efficient as possible, we should have a different method for setting the origins and reading the nodes.
+  //todo they are almost completely independent. It would be most efficient to have an individual class.
+  //todo but do we need a different monkeyPatch? or do we just need to pass in the this and args into the constructor?
+
+  // monkeyPatch(Element.prototype, "outerHTML", 'set', CloneNodeConstructionFrame);  //todo make a separate function here. Or. Should we simply outlaw this function?
+  monkeyPatch(Element.prototype, "innerHTML", 'set', InnerHTMLConstructionFrame);
+  monkeyPatch(ShadowRoot.prototype, "innerHTML", 'set', InnerHTMLConstructionFrame);
+  monkeyPatch(Element.prototype, "insertAdjacentHTML", 'value', InsertAdjacentHTMLConstructionFrame);
+  monkeyPatch(Node.prototype, "cloneNode", 'value', CloneNodeConstructionFrame);
+  monkeyPatch(Document.prototype, "createElement", 'value', DocumentCreateElementConstructionFrame);
+  monkeyPatch(CustomElementRegistry.prototype, "define", 'value', UpgradeConstructionFrame);
   /*
    * PREDICTIVE PARSER
    */
-  function endTagRead(el, lastParsed) {
-    return el !== lastParsed && el.compareDocumentPosition(lastParsed) !== 20;
+  let completedBranches = [];
+
+  function endPredictiveFrame(el, frame) {
+    frame.end(completedBranches); //todo use the root and complete branch to create a correct iterator.
+    completedBranches.push(el);
   }
+
+  //todo avoid the use of now?
+  function resetNow() {
+    now = undefined;
+  }
+
+  const po = new ParserObserver(resetNow, endPredictiveFrame);
+
+  class PredictiveConstructionFrameHTMLElement extends HTMLElement {
+    constructor() {
+      super();
+      !now && po.observe(this, new PredictiveConstructionFrame(this));
+    }
+  }
+
+  class UpgradeConstructionFrameHTMLElement extends PredictiveConstructionFrameHTMLElement {
+    constructor() {
+      super();
+      now instanceof UpgradeConstructionFrame && now.tagName === this.tagName && now.pushElement(this);
+    }
+  }
+
+  window.HTMLElement = UpgradeConstructionFrameHTMLElement;
 
   function dropParentPrototype(proto) {
     Object.setPrototypeOf(proto, Object.getPrototypeOf(Object.getPrototypeOf(proto)));
   }
 
-  const frames = [];
-
-  function onParseBreak(e) {
-    now = undefined;
-    const endTagReadElement = frames.findIndex(({el}) => endTagRead(el, e.lastParsed));
-    if (endTagReadElement < 0) return;
-    const endedContexts = frames.splice(endTagReadElement);
-    for (let i = endedContexts.length - 1; i >= 0; i--)
-      ConstructionFrame.end(endedContexts[i].frame);
-    !endTagReadElement && window.removeEventListener('beforescriptexecute', onParseBreak, true);
-  }
-
-  function predictiveConstructionFrameStart(el) {
-    !frames.length && window.addEventListener('beforescriptexecute', onParseBreak, true);
-    const frame = ConstructionFrame.start('predictive');
-    frames.push({el, frame});
-  }
-
-  class ConstructionFrameHTMLElement extends class OnlyWhileLoadingHTMLElement extends HTMLElement {
-    constructor() {
-      super();
-      !now && predictiveConstructionFrameStart(this);
-    }
-  } {
-  }
-
-  HTMLElement = ConstructionFrameHTMLElement;
-  window.addEventListener('readystatechange',
-    () => dropParentPrototype(ConstructionFrameHTMLElement.prototype), {once: true, capture: true});
+  if (document.readyState !== 'loading')
+    dropParentPrototype(UpgradeConstructionFrameHTMLElement.prototype);
+  else
+    window.addEventListener('readystatechange',
+      () => dropParentPrototype(UpgradeConstructionFrameHTMLElement.prototype), {once: true, capture: true});
 })();

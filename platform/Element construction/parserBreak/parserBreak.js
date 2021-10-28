@@ -7,6 +7,8 @@
  Why parser-break event? Custom elements that assign nodes imperatively should not run this functionality until all the childNodes in the template is ready. When elements load, this state cannot be assessed at connectedCallback time because only the host node is present and the childNodes are always unknown.
  Thus, during loading, the browser should only check the state of custom elements at parser-break, this is most efficient and the only necessary times. If all the childNodes have been added at this time, which is identified by the lastParsed element is not a DOM descendant of the custom element, the childReady can be called for the constructionFrame the custom element is a root of.
  */
+
+
 function deepestElement(root) {
   while (root.lastChild) root = root.lastChild;
   return root;
@@ -20,14 +22,18 @@ function lastParsed() {
 }
 
 document.readyState === "loading" && (function () {
+  let previouslyParsed;
+
   function dispatchBeforeScriptExecute(arg) {
     const ev = new Event('parser-break');
     console.log(arguments[0])
     const lastParsedElement = lastParsed();
 
-    if(lastParsedElement.connectedCallback) return;
-      ev.lastParsed = lastParsedElement;
 
+      if (previouslyParsed === lastParsedElement || lastParsedElement.connectedCallback) return;
+    ev.lastParsed = lastParsedElement;
+
+    previouslyParsed = lastParsedElement;
     return window.dispatchEvent(ev);
   }
 
@@ -35,7 +41,7 @@ document.readyState === "loading" && (function () {
   mo.observe(document.documentElement, {childList: true, subtree: true});
   window.addEventListener('readystatechange', function () {
     dispatchBeforeScriptExecute();
-     mo.disconnect();
+    mo.disconnect();
   }, {capture: true, once: true});
 })();
 
