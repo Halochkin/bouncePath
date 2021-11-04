@@ -20,7 +20,9 @@ const worksJustFine = new X();
 
 You have three options when you need to upgrade the `HTMLElement`:
 
-1. Wrap and replace `HTMLElement` class. This is the simplest and cleanest method is to upgrade the `HTMLElement` class. If you replace the `HTMLElement` first (as in before any other JS script has used it in some `extends`-expression or otherwise), then you will know that *all* `HTMLElement`s in your app are upgraded.
+1. Wrap and replace `HTMLElement` class. This is the simplest and cleanest method is to upgrade the `HTMLElement` class.
+If you replace the `HTMLElement` first (as in before any other JS script has used it in some `extends`-expression or otherwise),
+then you will know that *all* `HTMLElement`s in your app are upgraded.
 
    The drawback of replacing `HTMLElement` class is that:
 	1. all upgrades now apply to all `HTMLElement`s whether they need it or not. This can have huge impact for performance if some of your upgrade require custom listeners or caching in memory. In addition, you must make very sure that none of your upgrades will come into conflict with *any other* implementation.

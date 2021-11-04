@@ -1,0 +1,41 @@
+<script src="../src/BouncedPath.js"></script>
+<script src="../../../platform_bubble/Event.js"></script>
+<script src="../src/EventListenerRegistry.js"></script>
+<script src="../../callbacks/firstConnectedCallbackMixin/FirstConnectedCallbackMixin.js"></script>
+<script src="../src/EventLoop.js"></script>
+
+<body :uid="0">
+<div :uid="1"></div>
+</body>
+
+
+<event-loop></event-loop>
+
+<script type="module">
+
+  function gotFive() {
+    return 5;
+  }
+
+  (() => {
+    const divElement = document.querySelector("div");
+    const eventLoop = document.querySelector("event-loop");
+    const event = new Event("test");
+    event.cb = gotFive;
+    event.uid = divElement.getAttribute(":uid");
+    divElement.dispatchEvent(event);
+    console.log([...eventLoop.children].map(n => n.nodeName))
+  })();
+
+
+  // window.addEventListener("keypress", e => {
+  //
+  //   e.cb = gotFive;
+  //   e.uid = 1;
+  //   document.querySelector("div").dispatchEvent(e);
+  //
+  //
+  // })
+
+
+</script>

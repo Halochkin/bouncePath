@@ -1,10 +1,10 @@
-export const composedPathOG = Event.prototype.composedPath;
-export const preventDefaultOG = Event.prototype.preventDefault;
-export const stopImmediatePropagationOG = Event.prototype.stopImmediatePropagation;
+  const composedPathOG = Event.prototype.composedPath;
+  const preventDefaultOG = Event.prototype.preventDefault;
+  const stopImmediatePropagationOG = Event.prototype.stopImmediatePropagation;
 
 const eventToState = new WeakMap();
 
-export function initEvent(e, composedPath) {
+  function initEvent(e, composedPath) {
   eventToState.set(e, {
     timeStamp: new Date().getTime(),
     eventPhase: Event.BUBBLING_PHASE,
@@ -12,7 +12,7 @@ export function initEvent(e, composedPath) {
   });
 }
 
-export function updateEvent(e, key, value) {
+  function updateEvent(e, key, value) {
   (eventToState.get(e))[key] = value;
 }
 
