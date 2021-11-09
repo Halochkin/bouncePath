@@ -18,6 +18,7 @@
     return empty;
   }
 
+
   remove(target, type, listener) {
     const listeners = this.map[type]?.get(target);
     if (!listeners)
